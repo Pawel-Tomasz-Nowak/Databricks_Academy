@@ -1,48 +1,68 @@
 # Databricks Academy by SoftServe
 
-📚 This repository contains my weekly assignments for the Databricks Academy by SoftServe.
+This repository collects the lab work for the Databricks Academy by SoftServe. It is organized by assignment so each lab stays in its own folder with the notebooks, datasets, screenshots, and other files that belong to that part of the course.
 
-Each assignment is stored in its own dedicated folder, one folder per week, so the repository grows in a clean and easy-to-navigate way as the course progresses.
-
-## What this repository includes
-
-- 🏢 Training materials and hands-on exercises from the Databricks Academy by SoftServe
-- 🗂️ One folder per assignment week
-- 🧪 Notebooks, datasets, and supporting files used to complete each lab
-- 📈 A structured history of my progress through the academy
-
-## Current structure
+## Repository layout
 
 ```text
 README.md
 LICENSE
-LAB 1 — Databricks Fundamentals & DEV Setup/
-	├── Notebook.ipynb
-	└── alabama_sold_real_estate_intelligence_2026.csv
+LAB 1 – Databricks Fundamentals & DEV Setup/
+	Notebook.ipynb
+	alabama_sold_real_estate_intelligence_2026.csv
+	image_1783362421351.png
+	Dashboard - week 1.lvdash.json
+LAB 2 – Azure Services & Shared Lakehouse Setup/
+	Stage 1/
+		key_vault.png
+		storage_account.png
+		workspace.png
+	Stage 2/
+		bronze_ingestion.ipynb
+		creating schemas.dbquery.ipynb
+		optional task.ipynb
+		Service Principal connection.ipynb
+		silver_ingestion.ipynb
 ```
 
-## Current assignment
+## What is in the repository
 
-### LAB 1 — Databricks Fundamentals & DEV Setup
+The repository is split into lab folders rather than one large notebook collection. That keeps the material for each topic together and makes it easier to follow the course week by week.
 
-The first lab focuses on the foundations of the Databricks environment and development setup. It currently includes:
+### LAB 1 – Databricks Fundamentals & DEV Setup
 
-- a notebook for the lab work
-- a CSV dataset used during the exercises
+This lab covers the basics of the Databricks environment and the development setup. The folder currently contains:
 
-## Repository convention
+- `Notebook.ipynb`, which holds the main lab work
+- `alabama_sold_real_estate_intelligence_2026.csv`, the dataset used in the exercises
+- `Dashboard - week 1.lvdash.json`, a dashboard export for the first week
+- `image_1783362421351.png`, a supporting image file
 
-Future weekly assignments will follow the same pattern:
+### LAB 2 – Azure Services & Shared Lakehouse Setup
 
-```text
-LAB X — <assignment title>/
-```
+This lab is divided into stages.
 
-This keeps the repository organized, makes each week easy to find, and separates the content of one lab from the next.
+#### Stage 1
 
-## About the program
+Stage 1 contains screenshots that document the Azure setup steps:
 
-The Databricks Academy by SoftServe is a practical learning track focused on building skills with Databricks through guided exercises and real-world-style tasks.
+- `key_vault.png`
+- `storage_account.png`
+- `workspace.png`
+
+#### Stage 2
+
+Stage 2 contains the notebooks for the lakehouse and ingestion tasks:
+
+- `bronze_ingestion.ipynb`
+- `creating schemas.dbquery.ipynb`
+- `optional task.ipynb`
+- `Service Principal connection.ipynb`
+- `silver_ingestion.ipynb`
+
+## Notes
+
+The repository structure is expected to grow as more labs are added. New assignments should follow the same pattern: create a folder for the lab, keep related notebooks and assets together, and avoid mixing files between weeks.
 
 ## License
 
