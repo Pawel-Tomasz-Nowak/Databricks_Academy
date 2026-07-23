@@ -23,6 +23,10 @@ LAB 2 – Azure Services & Shared Lakehouse Setup/
 		optional task.ipynb
 		Service Principal connection.ipynb
 		silver_ingestion.ipynb
+LAB 3 — Streaming & Incremental Ingestion/
+    CloudFiles_AutoLoader.ipynb
+    EventHub_AutoLoader.ipynb
+    metallica_event_hubs.ipynb
 ```
 
 ## What is in the repository
@@ -59,6 +63,14 @@ Stage 2 contains the notebooks for the lakehouse and ingestion tasks:
 - `optional task.ipynb`
 - `Service Principal connection.ipynb`
 - `silver_ingestion.ipynb`
+
+### LAB 3 — Streaming & Incremental Ingestion
+
+This lab focuses on streaming and incremental ingestion patterns using Databricks AutoLoader, Event Hubs, and related streaming sources. The folder currently contains:
+
+- `CloudFiles_AutoLoader.ipynb` — demonstrates file-based streaming ingestion with AutoLoader.
+- `EventHub_AutoLoader.ipynb` — shows ingesting events from Azure Event Hubs.
+- `metallica_event_hubs.ipynb` — an example notebook used in the Event Hubs exercises.
 
 ## Notes
 

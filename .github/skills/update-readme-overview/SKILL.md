@@ -27,6 +27,7 @@ Rewrite `README.md` so it clearly explains what this repository contains, how it
 - Mention the main notebook, datasets, dashboards, or other supporting files when present.
 - If the repository is a course or assignment collection, explain that in plain language.
 - Do not invent content that is not present in the workspace.
+- Everytime I ask you to update the readme file, just add the description of the new weekly assignment, update the repo structure. Don't change the general overview of the program or the description of the repository.
 
 ## Style constraints
 
