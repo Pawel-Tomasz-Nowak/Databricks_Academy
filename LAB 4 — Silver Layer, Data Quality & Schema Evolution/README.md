@@ -1,18 +1,33 @@
-# LAB 4 — Silver Layer, Data Quality & Schema Evolution
+# LAB 4 — Silver Layer, Data Quality & Schema Evolution ✅
 
 This laboratory demonstrates implementing a **Silver Layer** data pipeline with data quality enforcement and schema evolution using **Slowly Changing Dimensions (SCD)** Type I and Type II patterns in Databricks.
+
+**Status:** ✅ **COMPLETED** — Includes modular architecture, comprehensive documentation, and clean code practices following modern Python conventions.
 
 ## 📁 Directory Structure
 
 ```
 LAB 4 — Silver Layer, Data Quality & Schema Evolution/
-├── Lab 4 (notebook)           # Main execution notebook
-├── config.py                   # Table name configurations
-├── data_generators.py          # Synthetic data generation
-├── data_cleaner.py            # Data quality and cleansing logic
-├── data_mergers.py            # Delta merge operations
-├── preprocessing.py           # Orchestration pipeline
-└── README.md                  # This documentation
+├── notebooks/                         # Jupyter notebooks
+│   ├── Lab 4.ipynb                   # Main execution notebook
+│   └── workflow_for_job.ipynb        # Job orchestration workflow
+├── src/                              # Python modules (source code)
+│   ├── __init__.py                   # Package initialization
+│   ├── config.py                     # Dynamic configuration (widgets/env-based)
+│   ├── data_generators.py            # Synthetic data generation with overlaps
+│   ├── data_cleaner.py               # Data quality transformations
+│   ├── data_mergers.py               # Delta Lake merge operations (SCD I/II)
+│   └── preprocessing.py              # End-to-end ETL orchestration
+├── images/                            # Schema evolution error screenshots
+│   ├── cast_invalid_input_string_to_int.png
+│   ├── column_mapping_mode_required.png
+│   ├── delta_metadata_mismatch_extra_column.png
+│   ├── integer_overflow.png
+│   ├── schema_merge_incompatible_types.png
+│   ├── schema_mismatch_renamed_column.png
+│   └── type_widening_narrowing.png
+├── setup_imports.py                  # Import path helper for module loading
+└── README.md                         # This documentation
 ```
 
 ## 🎯 Lab Objectives

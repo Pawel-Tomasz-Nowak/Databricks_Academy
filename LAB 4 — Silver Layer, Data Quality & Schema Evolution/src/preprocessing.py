@@ -26,10 +26,10 @@ Author: Paweł Nowak
 Date: 2026-08-10
 """
 
-from config import tables
-from data_cleaner import clean_bronze_data
-from data_generators import generate_bronze_data
-from data_mergers import merge_new_batch
+from src.config import tables
+from src.data_cleaner import clean_bronze_data
+from src.data_generators import generate_bronze_data
+from src.data_mergers import merge_new_batch
 from pyspark.sql import SparkSession
 
 spark = SparkSession.builder.getOrCreate()
