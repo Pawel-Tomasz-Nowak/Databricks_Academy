@@ -34,12 +34,18 @@ Author: Paweł Nowak
 Date: 2026-08-10
 """
 
-from pyspark.sql import functions as F
-from pyspark.sql import SparkSession
+from typing import Final
+
+from pyspark.sql import DataFrame, SparkSession, functions as F
 
 spark = SparkSession.builder.getOrCreate()
 
-def generate_bronze_data(NUM_ROWS = 1_000_000, batch_offset: int = 0):
+OVERLAP_FACTOR: Final[float] = 0.95
+NEGATIVE_VALUE_PROBABILITY: Final[float] = 0.03
+NEGATIVE_PLAY_TIME: Final[int] = -100
+SKIP_PROBABILITY: Final[float] = 0.2
+
+def generate_bronze_data(NUM_ROWS: int = 1_000_000, batch_offset: int = 0) -> DataFrame:
     """Generate synthetic bronze-layer streaming event data.
     
     Creates a PySpark DataFrame with music streaming events containing
@@ -98,7 +104,7 @@ def generate_bronze_data(NUM_ROWS = 1_000_000, batch_offset: int = 0):
     countries = ["PL", "US", "DE", "UK", "FR", "JP", "BR"]
     device_types = ["mobile", "desktop", "smart_tv", "web_player"]
 
-    modulo_threshold:int = int(0.95*NUM_ROWS) + batch_offset
+    modulo_threshold: int = int(OVERLAP_FACTOR * NUM_ROWS) + batch_offset
     
     df_bronze = df_raw.select(
         F.concat(F.lit("evt_"), ((F.col("id") + F.lit(batch_offset)) % modulo_threshold)).alias("event_id"),

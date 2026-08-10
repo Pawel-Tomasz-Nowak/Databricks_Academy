@@ -20,9 +20,10 @@ Author: Paweł Nowak
 Date: 2026-08-10
 """
 
-import pyspark.sql.functions as F
+from pyspark.sql import DataFrame, Window
+from pyspark.sql import functions as F
 
-def clean_bronze_data(bronze_table, scd_type:str = "I"):
+def clean_bronze_data(bronze_table: DataFrame, scd_type: str = "I") -> DataFrame:
     """Clean and transform bronze streaming event data for silver layer.
     
     Applies data quality transformations to prepare raw event data for analytics:
@@ -60,64 +61,40 @@ def clean_bronze_data(bronze_table, scd_type:str = "I"):
         - Negative play_time_seconds values (3% of synthetic data) set to 0
         - Reports row count change to stdout for monitoring
     """
-    if bronze_table.count()==0:
+    if bronze_table.count() == 0:
         return bronze_table
-    
-    # part1 - handling negative values in non-negative columns
 
-    # There's a great chance our synthetized batch has negative value in the `play_time_seconds` column
     play_col_name = "play_time_seconds"
     min_play_time_before: float = bronze_table.agg(F.min(F.col(play_col_name))).collect()[0][0]
 
     if min_play_time_before < 0:
-        play_time_seconds_fixed = F.when(F.col(play_col_name) <0, 0).otherwise(F.col(play_col_name))
+        play_time_seconds_fixed = F.when(F.col(play_col_name) < 0, 0).otherwise(F.col(play_col_name))
         df_silver1 = bronze_table.withColumn(play_col_name, play_time_seconds_fixed)
     else:
         df_silver1 = bronze_table
 
-
     min_play_time_after: float = df_silver1.agg(F.min(F.col(play_col_name))).collect()[0][0]
     print(f"The minimum play time is {min_play_time_after} seconds")
 
-
-    # part 2 - checking missing values
-    missing_counts = df_silver1.select([
-    F.count(F.when(F.col(c).isNull(), c)).alias(c)
-    for c in df_silver1.columns
-    ])
-
-    # There are no missing values in any columns, particularly in 'event_id' which serves as a primary key and cannot be Null, but genre whose missing values are fgoing ot be transformed to Unknown for clearer interpretation
-
     df_silver2 = (
         df_silver1
-        .filter(F.col("event_id").isNotNull()) # Just for sanity, even though there shouldn't be nulls 
+        .filter(F.col("event_id").isNotNull())
         .withColumn(
             "genre",
             F.when(F.col("genre").isNull(), "Unknown").otherwise(F.col("genre"))
         )
     )
 
-
-    # Part 2 - deduplicating by event_id
-    event_count = df_silver2.groupBy(F.col("event_id")).agg(F.count(F.col("event_id")).alias("count")).sort(F.desc(F.col("count")))
-
-    # Some events appear multiple times with different timestamp.
-    # To eliminate duplicates with respect to event_id, we'll use the timestamp column to determine which event is the most recent
-
-    event_count_with_timestamp = df_silver1.groupBy(F.col("event_id"), F.col("event_timestamp")).agg(F.count(F.col("event_id")).alias("count")).sort(F.desc(F.col("count")))
-
-
-    from pyspark.sql import Window
-
     event_window = Window.partitionBy("event_id").orderBy(F.desc("event_timestamp"))
 
-    df_silver3 = (df_silver2.withColumn("row_number", F.row_number().over(event_window))
-                .filter(F.col("row_number") == 1)
-                .drop("row_number"))
+    df_silver3 = (
+        df_silver2
+        .withColumn("row_number", F.row_number().over(event_window))
+        .filter(F.col("row_number") == 1)
+        .drop("row_number")
+    )
 
-
-    df_silver4 = df_silver3 \
-        .withColumn("_processed_at", F.current_timestamp())
+    df_silver4 = df_silver3.withColumn("_processed_at", F.current_timestamp())
 
     bronze_count = bronze_table.count()
     silver_count = df_silver4.count()

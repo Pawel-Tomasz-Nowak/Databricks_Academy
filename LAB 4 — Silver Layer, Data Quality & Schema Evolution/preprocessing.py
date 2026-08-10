@@ -27,15 +27,14 @@ Date: 2026-08-10
 """
 
 from config import tables
-from data_mergers import merge_new_batch
-from data_generators import generate_bronze_data
 from data_cleaner import clean_bronze_data
-
+from data_generators import generate_bronze_data
+from data_mergers import merge_new_batch
 from pyspark.sql import SparkSession
 
 spark = SparkSession.builder.getOrCreate()
 
-def preprocess_new_batch(NUM_ROWS = 1_000_000, batch_offset=0, scd_type: str = "I"):
+def preprocess_new_batch(NUM_ROWS: int = 1_000_000, batch_offset: int = 0, scd_type: str = "I") -> None:
     """Generate and process a new batch of streaming events through the data pipeline.
     
     Orchestrates the complete bronze-to-silver transformation:

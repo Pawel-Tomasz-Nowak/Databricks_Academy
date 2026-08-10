@@ -8,8 +8,9 @@ Table Structure:
     Bronze Layer: Raw streaming events (append-only)
     Silver Layer: Cleaned, deduplicated events (SCD I or II)
 
-Catalog: workspace
-Schema: lab_4_schema
+Configuration:
+    Uses notebook query parameters (widgets) when available,
+    falls back to environment variables or defaults.
 
 Usage:
     >>> from config import tables
@@ -20,16 +21,49 @@ Author: Paweł Nowak
 Date: 2026-08-10
 """
 
-# SCD Type I table names - simple upsert, no history
-target_bronze_table_SCD_I = "workspace.lab_4_schema.bronze_streaming_events_SCD_I"
-target_silver_table_SCD_I = "workspace.lab_4_schema.silver_streaming_events_SCD_I"
+import os
+from typing import Final
 
-# SCD Type II table names - historical tracking with validity periods
-target_bronze_table_SCD_II = "workspace.lab_4_schema.bronze_streaming_events_SCD_II"
-target_silver_table_SCD_II = "workspace.lab_4_schema.silver_streaming_events_SCD_II"
+# I wanted so badly to have a parametrizable Python script (like widgers parameters in the notebook) :D
+_dbutils = None
+try:
+    from IPython import get_ipython
+    ipython = get_ipython()
+    if ipython is not None:
+        _dbutils = ipython.user_ns.get('dbutils', None)
+    
+    if _dbutils is None:
+        from databricks.sdk.runtime import dbutils as _dbutils
+except Exception:
+    _dbutils = None
 
-# Nested dictionary for easy lookup: tables[scd_type][layer]
-# Example: tables["II"]["silver"] returns the Type II silver table name
+if _dbutils is not None:
+    _dbutils.widgets.text("catalog", "workspace", "Catalog Name")
+    _dbutils.widgets.text("schema", "lab_4_schema", "Schema Name")
+    
+    catalog_name: str = _dbutils.widgets.get("catalog")
+    schema_name: str = _dbutils.widgets.get("schema")
+else:
+    catalog_name: str = os.getenv("CATALOG_NAME", "workspace")
+    schema_name: str = os.getenv("SCHEMA_NAME", "lab_4_schema")
+
+def create_catalog_and_schema(catalog: str, schema: str):
+    from pyspark.sql import SparkSession
+    spark = SparkSession.getActiveSession()
+    
+    spark.sql(f"CREATE CATALOG IF NOT EXISTS {catalog}")
+    spark.sql(f"USE CATALOG {catalog}")
+    spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
+
+TBL_NAME_SCD_I: Final[str] = "streaming_events_SCD_I"
+TBL_NAME_SCD_II: Final[str] = "streaming_events_SCD_II"
+
+target_bronze_table_SCD_I = f"{catalog_name}.{schema_name}.bronze_{TBL_NAME_SCD_I}"
+target_silver_table_SCD_I = f"{catalog_name}.{schema_name}.silver_{TBL_NAME_SCD_I}"
+
+target_bronze_table_SCD_II = f"{catalog_name}.{schema_name}.bronze_{TBL_NAME_SCD_II}"
+target_silver_table_SCD_II = f"{catalog_name}.{schema_name}.silver_{TBL_NAME_SCD_II}"
+
 tables = {
     "I": {
         "bronze": target_bronze_table_SCD_I,

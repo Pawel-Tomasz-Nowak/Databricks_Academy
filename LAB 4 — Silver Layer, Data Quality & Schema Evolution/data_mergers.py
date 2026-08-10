@@ -24,13 +24,12 @@ Date: 2026-08-10
 """
 
 from delta.tables import DeltaTable
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
-
-from pyspark.sql import SparkSession
 
 spark = SparkSession.builder.getOrCreate()
 
-def merge_new_batch(batch, table_name:str, scd_type: str = "I"):
+def merge_new_batch(batch: DataFrame, table_name: str, scd_type: str = "I") -> None:
     """Merge a new data batch into an existing Delta table using SCD strategy.
     
     Implements Slowly Changing Dimension patterns to handle updates, inserts, and
@@ -70,7 +69,6 @@ def merge_new_batch(batch, table_name:str, scd_type: str = "I"):
     Notes:
         - Type II requires batch to have valid_from, valid_to, is_current columns
         - Type II staging uses merge_id trick: None for inserts, event_id for updates
-        - Commented code at bottom shows alternative Type II implementation
     """
     delta_silver_table = DeltaTable.forName(spark, table_name)
 
@@ -89,13 +87,13 @@ def merge_new_batch(batch, table_name:str, scd_type: str = "I"):
             "target._source_file": F.col("source._source_file"),
             "target._processed_at": F.current_timestamp()
         }
-         
+
         delta_silver_table.alias("target").merge(
-            source = batch.alias("source"),
-            condition = F.col("target.event_id") == F.col("source.event_id")
+            source=batch.alias("source"),
+            condition=F.col("target.event_id") == F.col("source.event_id")
         ).whenMatchedUpdate(
-            condition = F.col("source.event_timestamp") > F.col("target.event_timestamp"),
-            set = col_updates
+            condition=F.col("source.event_timestamp") > F.col("target.event_timestamp"),
+            set=col_updates
         ).execute()
 
     elif scd_type == "II":
@@ -142,9 +140,8 @@ def merge_new_batch(batch, table_name:str, scd_type: str = "I"):
          # Finally, merge the silver_target with staging_df
 
         # 3rd type: old record (possibly with some dimensions changed but that's not necessary) - we insert into another extra for out-of-order data
-        # old_records_to_insert = records_to_update.filter(F.col("src.event_timestamp") <= F.col("tgt.event_timestamp"))
-        
-  
+        old_records_to_insert = records_to_update.filter(F.col("src.event_timestamp") <= F.col("tgt.event_timestamp"))
+
         delta_silver_table.alias("tgt") \
         .merge(
             staging_df.alias("src"), 
@@ -170,76 +167,9 @@ def merge_new_batch(batch, table_name:str, scd_type: str = "I"):
             "valid_from": F.col("src.event_timestamp"),
             "valid_to": F.lit(None).cast("timestamp"),
             "is_current": F.lit(True)
-        }) \
+        })\
         .execute()
 
-
-    
-
-
-
-        # filter_condition = (
-        #     (
-        #         (F.col("tgt.user_id") != F.col("src.user_id")) |
-        #         (F.col("tgt.track_id") != F.col("src.track_id")) |
-        #         (F.col("tgt.genre") != F.col("src.genre")) |
-        #         (F.col("tgt.play_time_seconds") != F.col("src.play_time_seconds")) |
-        #         (F.col("tgt.royalty_rate") != F.col("src.royalty_rate")) |
-        #         (F.col("tgt.is_skipped") != F.col("src.is_skipped")) |
-        #         (F.col("tgt.country_code") != F.col("src.country_code")) |
-        #         (F.col("tgt.device_type") != F.col("src.device_type")) |
-        #         (F.col("tgt.event_timestamp") != F.col("src.event_timestamp")) |
-        #         (F.col("tgt._ingested_at") != F.col("src._ingested_at")) |
-        #         (F.col("tgt._source_file") != F.col("src._source_file"))
-        #     ) &
-        #     (F.col("tgt.is_current") == True) &
-        #     (F.col("src.event_timestamp") > F.col("tgt.event_timestamp"))
-        # )
-
-        # records_to_update = batch.alias("src")\
-        #     .join(delta_silver_table.toDF().alias("tgt"), on = "event_id")\
-        #     .filter(filter_condition)\
-        #     .select("src.*")
-
-        # records_to_expire = records_to_update.withColumn("merge_id", F.col("event_id"))
-
-        # records_to_insert_new_versions = records_to_update.withColumn("merge_id", F.lit(None).cast("string"))
-
-        # # Completely new event_ids
-        # records_to_insert_brand_new = batch.alias("src")\
-        #     .join(delta_silver_table.toDF().alias("tgt"), on="event_id", how="leftanti")\
-        #     .withColumn("merge_id", F.lit(None).cast("string"))
-
-        # staging_df = records_to_expire.union(records_to_insert_new_versions).union(records_to_insert_brand_new)
-                
-
-        # delta_silver_table.alias("tgt") \
-        #     .merge(
-        #         staging_df.alias("src"), 
-        #         # Match only on the active target row using our custom merge_id
-        #         """tgt.event_id = src.merge_id AND tgt.is_current = true 
-        #         AND src.event_timestamp > tgt.event_timestamp"""
-        #     ) \
-        #     .whenMatchedUpdate(set={
-        #         # Action 1: Expire the old record because a match was found
-        #         "tgt.is_current": F.lit(False),
-        #         "tgt.valid_to": F.col("src.event_timestamp") 
-        #     }) \
-        #     .whenNotMatchedInsert(values={
-        #         "event_id": F.col("src.event_id"),
-        #         "user_id": F.col("src.user_id"),
-        #         "track_id": F.col("src.track_id"),
-        #         "genre": F.col("src.genre"),
-        #         "play_time_seconds": F.col("src.play_time_seconds"),
-        #         "royalty_rate": F.col("src.royalty_rate"),
-        #         "is_skipped": F.col("src.is_skipped"),
-        #         "country_code": F.col("src.country_code"),
-        #         "device_type": F.col("src.device_type"),
-        #         "event_timestamp": F.col("src.event_timestamp"),
-        #         "_ingested_at": F.col("src._ingested_at"),
-        #         "_source_file": F.col("src._source_file"),
-        #         "valid_from": F.col("src.event_timestamp"),
-        #         "valid_to": F.lit(None).cast("timestamp"),
-        #         "is_current": F.lit(True)
-        #     }) \
-        #     .execute()
+        # Insert out-of-order records to table_name_out_of_order
+        out_of_order_table = f"{table_name}_out_of_order"
+        old_records_to_insert.select("src.*").write.format("delta").mode("append").saveAsTable(out_of_order_table)
