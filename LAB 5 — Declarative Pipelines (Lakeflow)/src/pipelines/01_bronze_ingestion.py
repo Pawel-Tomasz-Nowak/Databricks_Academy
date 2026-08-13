@@ -1,7 +1,4 @@
-# src/pipelines/01_bronze_ingestion.py
-import dlt
-from pyspark.sql.functions import current_timestamp
-from ..setup.music_pipeline_setup import (
+from src.setup.music_pipeline_setup import (
     bronze_schema_path,
     json_landing_path,
     metadata_music_schema,
@@ -9,7 +6,10 @@ from ..setup.music_pipeline_setup import (
     music_stats_tables,
     music_metadata_tables
 )
-## For later use, we'll switch to these parameters
+
+import dlt
+
+# # For later use, we'll switch to these parameters
 # LANDING_ZONE_PATH = spark.conf.get("music_project.landing_zone_path")
 # SCHEMA_PATH = spark.conf.get("music_project.checkpoint_path")
 
@@ -51,6 +51,3 @@ def bronze_music_metadata():
         .schema(metadata_music_schema)
         .load(music_metadata_file)
     )
-
-
-

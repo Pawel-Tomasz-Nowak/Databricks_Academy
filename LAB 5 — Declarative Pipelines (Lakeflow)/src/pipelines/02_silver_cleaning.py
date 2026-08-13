@@ -1,19 +1,24 @@
-import dlt
-from pyspark.sql.functions import col, current_timestamp
-from ..setup.music_pipeline_setup import (
-    bronze_schema_path,
-    json_landing_path,
-    metadata_music_schema,
-    music_metadata_file,
-    music_stats_tables,
-    bronze_music_metadata_table
-)
-import pyspark.sql.functions as F
-from pyspark.sql.window import Window
-from databricks.sdk.runtime import spark
-from delta_per_hour_metrics import compute_per_hour_deltas
+# Project root setup for absolute imports
+import os
+import sys
+project_root = os.path.abspath(os.path.join(os.getcwd(), '../..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
-# This table cleans YouTube stats and enforces data quality constraints.
+# Databricks runtime Spark object
+from databricks.sdk.runtime import spark
+
+# PySpark functions
+from pyspark.sql.functions import col, current_timestamp
+
+# Project-specific imports
+from src.setup.music_pipeline_setup import (
+    music_stats_tables,
+    music_metadata_tables
+)
+
+from src.transformations.delta_per_hour_metrics import compute_per_hour_deltas
+
 @dlt.table(
     name=music_stats_tables["silver"],
     comment="Cleaned YouTube stats. Invalid records are dropped or cause pipeline failure.",

@@ -12,7 +12,7 @@ directly as a Databricks job task. Requires an active SparkSession.
 """
 
 import requests
-from ..setup.music_pipeline_setup import music_metadata_tables, spark, yt_api_key, yt_video_url
+from src.setup.music_pipeline_setup import music_metadata_tables, spark, yt_api_key, yt_video_url
 from pyspark.sql.functions import col, regexp_extract
 from pyspark.sql import DataFrame
 from datetime import datetime
