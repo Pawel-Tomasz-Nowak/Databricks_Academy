@@ -1,3 +1,10 @@
+# Project root setup for absolute imports
+import os
+import sys
+project_root = os.path.abspath(os.path.join(os.getcwd(), '../..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 from src.setup.music_pipeline_setup import (
     bronze_schema_path,
     json_landing_path,
@@ -8,6 +15,9 @@ from src.setup.music_pipeline_setup import (
 )
 
 import dlt
+
+
+
 
 # # For later use, we'll switch to these parameters
 # LANDING_ZONE_PATH = spark.conf.get("music_project.landing_zone_path")
