@@ -23,6 +23,15 @@ from typing import Final
 from pyspark.sql import SparkSession
 from databricks.sdk import WorkspaceClient
 
+from pyspark.sql.types import StructType, StructField, StringType, DateType
+
+metadata_music_schema = StructType([
+    StructField("url", StringType(), True),
+    StructField("title", StringType(), True),
+    StructField("album", StringType(), True),
+    StructField("album_release_date", DateType(), True),
+    StructField("author", StringType(), True)
+])
 
 def _require_env(var: str) -> str:
     """Return the value of a required environment variable.
@@ -69,7 +78,14 @@ def _load_env_file(env_path: Path) -> None:
 
 # Load .env from the repo root (two directories above this file).
 # Cluster environment variables always take precedence (setdefault).
-_load_env_file(Path(__file__).resolve().parents[2] / ".env")
+try:
+    # When run as a module, __file__ is available
+    _env_path = Path(__file__).resolve().parents[2] / ".env"
+    _load_env_file(_env_path)
+except NameError:
+    # When run interactively (notebook/REPL), __file__ is not defined.
+    # Skip loading .env - rely on cluster environment variables instead.
+    pass
 
 w = WorkspaceClient()
 spark = SparkSession.getActiveSession()
@@ -85,7 +101,13 @@ json_landing_path: str = f"/Volumes/{catalog_name}/{music_schema}/{volume_name}/
 
 music_metadata_dir: str = f"/Volumes/{catalog_name}/{music_schema}/{volume_name}/music_metadata"
 music_metadata_file: str = f"{music_metadata_dir}/music_discography.csv"
-silver_music_metadata_table: str = f"{catalog_name}.{music_schema}.silver_music_metadata"
+
+
+music_metadata_tables = {
+    "bronze": f"{catalog_name}.{music_schema}.bronze_music_metadata",
+    "silver": f"{catalog_name}.{music_schema}.silver_music_metadata",
+    "gold": f"{catalog_name}.{music_schema}.gold_music_metadata",
+}
 
 music_stats_tables = {
     "bronze": f"{catalog_name}.{music_schema}.bronze_music_stats",
@@ -99,14 +121,39 @@ bronze_schema_path = f"/Volumes/{catalog_name}/{music_schema}/{volume_name}/sche
 yt_video_url: str = "https://www.googleapis.com/youtube/v3/videos"
 
 
-# Secret scope configuration — read from .env or cluster environment variables.
-# The actual API key value is never stored in code or .env; it lives exclusively
-# in the Databricks secret scope.
-_SECRET_SCOPE: Final[str] = _require_env("DBRICKS_SECRET_SCOPE")
-_SECRET_KEY: Final[str] = _require_env("DBRICKS_SECRET_KEY")
+def get_yt_api_key() -> str:
+    """Lazily load the YouTube API key from Databricks secrets.
+    
+    The secret scope configuration is read from .env or cluster environment variables.
+    The actual API key value is never stored in code or .env; it lives exclusively
+    in the Databricks secret scope.
+    
+    Returns:
+        The YouTube Data API v3 key.
+        
+    Raises:
+        EnvironmentError: If DBRICKS_SECRET_SCOPE or DBRICKS_SECRET_KEY env vars are not set.
+    """
+    secret_scope: str = _require_env("DBRICKS_SECRET_SCOPE")
+    secret_key: str = _require_env("DBRICKS_SECRET_KEY")
+    return w.dbutils.secrets.get(scope=secret_scope, key=secret_key)
 
-# YouTube Data API v3 key — retrieved from Databricks secrets at import time.
-yt_api_key: str = w.dbutils.secrets.get(scope=_SECRET_SCOPE, key=_SECRET_KEY)
+# For backwards compatibility, provide yt_api_key as a property that loads on first access
+# This allows old code to still work, but doesn't fail at import time
+_yt_api_key_cache = None
+
+def _get_yt_api_key_cached():
+    global _yt_api_key_cache
+    if _yt_api_key_cache is None:
+        _yt_api_key_cache = get_yt_api_key()
+    return _yt_api_key_cache
+
+# Note: This will only fail when actually accessed, not at import time
+try:
+    yt_api_key: str = _get_yt_api_key_cached()
+except EnvironmentError:
+    # If secrets aren't configured, set to None and let it fail when actually used
+    yt_api_key = None
 
 def setup_catalog() -> None:
     """
@@ -139,16 +186,14 @@ def set_up_jsons_landing_dir():
     w.dbutils.fs.mkdirs(json_landing_path)
 
 
-def setup_silver_music_metadata_table() -> None:
-    """Create the silver music-metadata Delta table if it does not exist.
+def setup_bronze_music_metadata_table() -> None:
+    """Create the bronze music-metadata Delta table if it does not exist.
 
-    Creates an empty ``silver_music_metadata_table`` using
+    Creates an empty ``bronze_music_metadata_table`` using
     ``CREATE TABLE IF NOT EXISTS``. Schema is inferred on the first write.
 
-    Note: the raw metadata records are already clean, deduplicated so we skip the
-    usual deduplication step and immediately write the metadata into silver layer.
     """
-    spark.sql(f"CREATE TABLE IF NOT EXISTS {silver_music_metadata_table}")
+    spark.sql(f"CREATE TABLE IF NOT EXISTS {bronze_music_metadata_table}")
 
 # Setup the catalog, schema, and volume
 # These are idempotent operations.
@@ -159,7 +204,7 @@ if __name__ == "__main__":
     setup_volume()
     setup_music_metadata_dir()
     set_up_jsons_landing_dir()
-    setup_silver_music_metadata_table()
+    setup_bronze_music_metadata_table()
 
 # NOTE: bronze/silver/gold music_stats tables are intentionally NOT pre-created here.
 # Their schemas are inferred on first write by the streaming writer (stream_yt_stats_to_bronze).

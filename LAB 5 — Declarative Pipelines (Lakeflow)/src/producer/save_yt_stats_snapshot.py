@@ -15,14 +15,10 @@ Side effects:
 """
 
 import json
-import sys
-
-sys.path.insert(0, "../../../00_setup/pawel_project")
-
 from datetime import datetime
 
-from music_pipeline_setup import json_landing_path
-from fetch_yt_video_stats import read_data_from_api
+from ..setup.music_pipeline_setup import json_landing_path
+from .fetch_yt_video_stats import read_data_from_api
 
 # ---------------------------------------------------------------------------
 # Fetch and persist

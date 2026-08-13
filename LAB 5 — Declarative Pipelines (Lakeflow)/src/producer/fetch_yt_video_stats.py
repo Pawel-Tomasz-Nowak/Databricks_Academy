@@ -11,16 +11,43 @@ Execution context: imported as a module by the snapshot runner or run
 directly as a Databricks job task. Requires an active SparkSession.
 """
 
-import sys
-
-sys.path.insert(0, "../../../00_setup/pawel_project")
-
-
-from video_id_extractor import find_video_ids
 import requests
-from music_pipeline_setup import silver_music_metadata_table, spark, yt_api_key, yt_video_url
-from pyspark.sql.functions import col
+from ..setup.music_pipeline_setup import music_metadata_tables, spark, yt_api_key, yt_video_url
+from pyspark.sql.functions import col, regexp_extract
+from pyspark.sql import DataFrame
 from datetime import datetime
+
+silver_music_metadata_table = music_metadata_tables["silver"]
+
+def find_video_ids(table: DataFrame) -> tuple[DataFrame, list[str]]:
+    """Extract YouTube video IDs from the ``url`` column of a metadata table.
+
+    Parses the 11-character ``v=<id>`` query parameter from each URL using
+    a regular expression, enriches the DataFrame with a ``video_id`` column,
+    and returns both the enriched DataFrame and a deduplicated list of IDs.
+
+    Args:
+        table: Spark DataFrame containing at least a ``url`` column with
+            YouTube watch URLs (e.g. ``https://www.youtube.com/watch?v=...``).
+
+    Returns:
+        A 2-tuple of:
+
+        - The input DataFrame enriched with a ``video_id`` column.
+        - A deduplicated list of non-null video ID strings.
+    """
+    # Parse the YouTube video ID from the URL ``v=`` query parameter.
+    table_widh_ids: DataFrame = table.withColumn(
+        "video_id", 
+        regexp_extract(col("url"), r"v=([a-zA-Z0-9_-]{11})", 1)
+    )
+
+    video_id_rows = table_widh_ids.select("video_id").collect()
+    
+    video_ids_list: list[str] = [row.video_id for row in video_id_rows if row.video_id]
+
+    return table_widh_ids, video_ids_list
+
 
 
 
@@ -60,12 +87,6 @@ def read_data_from_api(batch_size: int = 50) -> list[dict]:
 
     all_video_responses: list[dict] = []
 
-    def safe_int(val: object) -> int | None:
-        try:
-            return int(val) if val is not None and str(val).isdigit() else None
-        except Exception:
-            return None
-
     for batch in id_batches:
         batch_ids_str = ",".join(batch)
         
@@ -88,14 +109,13 @@ def read_data_from_api(batch_size: int = 50) -> list[dict]:
                 published_at = item_snippet.get("publishedAt")
                 title:str = item_snippet.get("title")
 
-                viewCount = safe_int(item_statistics.get("viewCount"))
-                likeCount = safe_int(item_statistics.get("likeCount"))
-                commentCount = safe_int(item_statistics.get("commentCount"))
+                viewCount = item_statistics.get("viewCount")
+                likeCount = item_statistics.get("likeCount")
+                commentCount = item_statistics.get("commentCount")
 
                 album, song_title, author = video_id_attr_map.get(video_id, [None, None, None])
 
                 video_response = {
-                    "_ingested_at": datetime.now().isoformat(timespec='seconds'),
                     "video_id": video_id,
                     "album": album,
                     "published_at": published_at,

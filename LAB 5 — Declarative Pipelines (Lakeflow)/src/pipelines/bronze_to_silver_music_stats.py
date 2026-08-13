@@ -10,17 +10,11 @@ Typical usage:
     directory on ``sys.path``.
 """
 
-import sys
 from typing import Final
 
-_CONFIG_PATH: Final[str] = "../../00_setup/pawel_project"
-
-if _CONFIG_PATH not in sys.path:
-    sys.path.insert(0, _CONFIG_PATH)
-
-from music_pipeline_setup import music_stats_tables
-from preprocess_bronze_stats import cast_and_deduplicate
-from delta_per_hour_metrics import compute_per_hour_deltas
+from ..setup.music_pipeline_setup import music_stats_tables, spark
+from .preprocess_bronze_stats import cast_and_deduplicate
+from .delta_per_hour_metrics import compute_per_hour_deltas
 
 _SILVER_COLUMNS: Final[list[str]] = [
     "author",

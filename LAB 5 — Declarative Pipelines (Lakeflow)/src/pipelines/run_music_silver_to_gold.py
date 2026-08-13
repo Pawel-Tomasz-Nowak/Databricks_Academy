@@ -4,19 +4,10 @@ Reads the silver music table, applies per-video and per-author aggregations,
 and appends the results to their respective gold Delta tables.
 """
 
-import sys
-from typing import Final
+from ..setup.music_pipeline_setup import music_stats_tables, spark
 
-_CONFIG_PATH: Final[str] = "../../00_setup/pawel_project"
-
-if _CONFIG_PATH not in sys.path:
-    sys.path.insert(0, _CONFIG_PATH)
-
-
-from music_pipeline_setup import music_stats_tables
-
-from aggregate_video_stats_by_minute import aggregate_video_stats_by_minute
-from aggregate_author_stats_by_minute import aggregate_author_stats_by_minute
+from .aggregate_video_stats_by_minute import aggregate_video_stats_by_minute
+from .aggregate_author_stats_by_minute import aggregate_author_stats_by_minute
 
 silver_music_tbl_path: str = music_stats_tables["silver"]
 gold_music_tbl_path: str = music_stats_tables["gold"]

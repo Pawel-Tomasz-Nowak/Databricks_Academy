@@ -15,15 +15,10 @@ Side effects:
     - Schema inference state is persisted at ``schema_path``.
 """
 
-import sys
-
-sys.path.insert(0, "../../../00_setup/pawel_project")
-
-
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.functions import col
 
-from music_pipeline_setup import (
+from ..setup.music_pipeline_setup import (
     music_stats_tables,
     catalog_name,
     json_landing_path,
