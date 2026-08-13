@@ -1,6 +1,5 @@
 import dlt
-from pyspark.sql.functions import col
-from pyspark.sql.functions import current_timestamp
+from pyspark.sql.functions import col, current_timestamp
 from ..setup.music_pipeline_setup import (
     bronze_schema_path,
     json_landing_path,
@@ -9,14 +8,12 @@ from ..setup.music_pipeline_setup import (
     music_stats_tables,
     bronze_music_metadata_table
 )
-
-
-import dlt
 import pyspark.sql.functions as F
 from pyspark.sql.window import Window
 from databricks.sdk.runtime import spark
 from delta_per_hour_metrics import compute_per_hour_deltas
 
+# This table cleans YouTube stats and enforces data quality constraints.
 @dlt.table(
     name=music_stats_tables["silver"],
     comment="Cleaned YouTube stats. Invalid records are dropped or cause pipeline failure.",
@@ -28,7 +25,6 @@ from delta_per_hour_metrics import compute_per_hour_deltas
 @dlt.expect_or_fail("valid_comment_count", "commentCount >= 0")
 def silver_youtube_stats():
     df_raw = dlt.read(music_stats_tables["bronze"]).withColumn("_ingested_at", current_timestamp())
-    
 
     columns_to_cast = {
         "_ingested_at": F.col("_ingested_at").cast("timestamp"),
@@ -43,17 +39,15 @@ def silver_youtube_stats():
         "song_title": F.col("song_title").cast("string"),
     }
 
-    df_clean = df_raw.withColumns(columns_to_cast)
+    # Drop duplicates to ensure only unique records per video and ingestion time.
+    df_clean = df_raw.withColumns(columns_to_cast).dropDuplicates(["video_id", "_ingested_at"])
 
     return compute_per_hour_deltas(df_clean)
 
-
-
-
-
+# Create a streaming table for music metadata with SCD Type 2 tracking.
 dlt.create_streaming_table(
     name=music_metadata_tables["silver"],
-    comment="Oczyszczony słownik metadanych ze śledzeniem zmian w czasie (SCD Type 2). Idealne do analizy np. zmian nazw zespołów (np. Burn the Priest -> Lamb of God).",
+    comment="Cleaned music metadata dictionary with SCD Type 2 history tracking. Useful for analyzing changes in band names over time.",
     table_properties={"quality": "silver"}
 )
 
@@ -64,9 +58,10 @@ dlt.create_streaming_table(
 def silver_music_metadata_stg():
     return dlt.read_stream(music_metadata_tables["bronze"])
 
+# Apply changes to the target table, tracking history for specified columns.
 dlt.apply_changes(
-    target = music_metadata_tables["silver"],
-    source = "silver_music_metadata_stg",
+    target=music_metadata_tables["silver"],
+    source="silver_music_metadata_stg",
     keys=["video_id"],
-    track_history_column_list = ["author", "title", "album"]
+    track_history_column_list=["author", "title", "album"]
 )
