@@ -1,0 +1,93 @@
+# ==============================================================================
+# DATABRICKS ASSET BUNDLES (DABs) — LAB 5
+# System detekcji skoków popularności muzyki na YouTube
+# ==============================================================================
+
+bundle:
+  name: music_popularity_spike_detection
+
+# ------------------------------------------------------------------------------
+# 1. ZMIENNE (Brak hardcodowania ułatwia przenoszenie DEV -> PROD)
+# ------------------------------------------------------------------------------
+variables:
+  catalog_name:
+    description: "Katalog w Unity Catalog"
+    default: "dbr_dev" 
+  schema_name:
+    description: "Schemat bazy danych dla tabel"
+    default: "pawelnowak2004pri219" 
+  landing_zone_path:
+    description: "Ścieżka do surowych plików CSV/JSON"
+    default: "/Volumes/dbr_dev/pawelnowak2004pri219/landing_zone" 
+  json_landing_zone_path:
+    description: "Ścieżka do surowych plików JSON"
+    default: "${var.landing_zone_path}/yt_snapshots"
+  csv_landing_zone_path:
+    description: "Ścieżka do surowych plików csv (do metadanych csv)"
+    default: "${var.landing_zone_path}/music_metadata"
+
+# ------------------------------------------------------------------------------
+# 2. ŚRODOWISKA (TARGETS) - Wdrażanie z użyciem złotych rad Artema
+# ------------------------------------------------------------------------------
+targets:
+  dev:
+    default: true
+    workspace:
+      host: https://dbc-d5499b55-ff1f.cloud.databricks.com/?o=7474650248019956
+    
+    # Obejście problemu z prefiksami .dev_ wg dyskusji na Discordzie
+    presets:
+      name_prefix: ''
+
+# ------------------------------------------------------------------------------
+# 3. ZASOBY (Orkiestracja i Pipeline)
+# ------------------------------------------------------------------------------
+resources:
+  
+  # A. DEKLARATYWNY POTOK DLT (Lakeflow)
+  pipelines:
+    music_dlt_pipeline:
+      name: "Music Popularity DLT Pipeline"
+      catalog: ${var.catalog_name}
+      schema: ${var.schema_name}
+      continuous: false
+      
+      # Wskazujemy nasze czyste pliki architektury
+      libraries:
+        - file:
+            path: src/pipelines/01_bronze_ingestion.py
+        - file:
+            path: src/pipelines/02_silver_cleaning.py
+        - file:
+            path: src/pipelines/03_gold_aggregations.py
+            
+      # Przekazywanie zmiennych do PySparka (odczytasz je przez spark.conf.get)
+      configuration:
+        music_project.landing_zone_path: ${var.landing_zone_path}
+
+  # B. ORKIESTRATOR (DATABRICKS JOB)
+  jobs:
+    music_etl_orchestrator:
+      name: "Full Music ETL Workflow"
+      
+      tasks:
+        # ZADANIE 1: Odpal producenta, żeby pobrał świeże dane z YouTube'a
+        - task_key: fetch_youtube_data
+          job_cluster_key: shared_job_cluster
+          spark_python_task:
+            python_file: src/producer/save_yt_stats_snapshot.py
+            
+        # ZADANIE 2: Gdy producent skończy, uruchom DLT, żeby te dane przerobić (Bronze->Silver->Gold)
+        - task_key: run_dlt_pipeline
+          depends_on:
+            - task_key: fetch_youtube_data
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.music_dlt_pipeline.id}
+
+      # Definicja klastra, który obudzi się tylko do wykonania zadania nr 1
+      job_clusters:
+        - job_cluster_key: shared_job_cluster
+          new_cluster:
+            spark_version: 14.3.x-scala2.12
+            node_type_id: Standard_DS3_v2  # Dostosuj do typu maszyny dostępnego w Twoim Azure/AWS
+            num_workers: 1
