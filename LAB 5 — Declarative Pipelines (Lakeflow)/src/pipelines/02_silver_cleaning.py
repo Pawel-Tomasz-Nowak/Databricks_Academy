@@ -61,12 +61,13 @@ dlt.create_streaming_table(
 )
 @dlt.expect_or_drop("valid_metatada_id", "video_id IS NOT NULL")
 def silver_music_metadata_stg():
-    return dlt.read_stream(music_metadata_tables["bronze"])
+    return dlt.read_stream(music_metadata_tables["bronze"]).withColumn("_ingested_at", current_timestamp())
 
 # Apply changes to the target table, tracking history for specified columns.
 dlt.apply_changes(
     target=music_metadata_tables["silver"],
     source="silver_music_metadata_stg",
+    sequence_by=F.col("_ingested_at"),
     keys=["video_id"],
     track_history_column_list=["author", "title", "album"]
 )

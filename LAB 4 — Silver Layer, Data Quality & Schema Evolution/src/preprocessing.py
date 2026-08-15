@@ -26,15 +26,22 @@ Author: Paweł Nowak
 Date: 2026-08-10
 """
 
-from src.config import tables
+from src.config import get_tables, DEFAULT_CATALOG, DEFAULT_SCHEMA
 from src.data_cleaner import clean_bronze_data
 from src.data_generators import generate_bronze_data
 from src.data_mergers import merge_new_batch
 from pyspark.sql import SparkSession
+from typing import Optional
 
 spark = SparkSession.builder.getOrCreate()
 
-def preprocess_new_batch(NUM_ROWS: int = 1_000_000, batch_offset: int = 0, scd_type: str = "I") -> None:
+def preprocess_new_batch(
+    NUM_ROWS: int = 1_000_000,
+    batch_offset: int = 0,
+    scd_type: str = "I",
+    catalog: Optional[str] = None,
+    schema: Optional[str] = None,
+) -> None:
     """Generate and process a new batch of streaming events through the data pipeline.
     
     Orchestrates the complete bronze-to-silver transformation:
@@ -54,6 +61,10 @@ def preprocess_new_batch(NUM_ROWS: int = 1_000_000, batch_offset: int = 0, scd_t
         scd_type (str, optional): Slowly Changing Dimension strategy - "I" or "II".
                                  Determines which bronze/silver table pair to use
                                  and merge logic. Defaults to "I".
+        catalog (str, optional): Unity Catalog catalog name. Resolves table names at
+                                 call time. Defaults to DEFAULT_CATALOG.
+        schema (str, optional): Schema name within the catalog. Resolves table names at
+                                call time. Defaults to DEFAULT_SCHEMA.
     
     Side Effects:
         - Creates/updates bronze Delta table
@@ -83,6 +94,10 @@ def preprocess_new_batch(NUM_ROWS: int = 1_000_000, batch_offset: int = 0, scd_t
         - Type II merge: historical tracking with validity periods
         - Batch overlap (offset < NUM_ROWS) simulates late-arriving events
     """    
+    _catalog = catalog or DEFAULT_CATALOG
+    _schema = schema or DEFAULT_SCHEMA
+    tables = get_tables(_catalog, _schema)
+
     bronze_batch = generate_bronze_data(NUM_ROWS=NUM_ROWS, batch_offset=batch_offset)
 
     bronze_table: str = tables[scd_type]["bronze"]

@@ -7,35 +7,27 @@ bundle:
   name: music_popularity_spike_detection
 
 # ------------------------------------------------------------------------------
-# 1. ZMIENNE (Brak hardcodowania ułatwia przenoszenie DEV -> PROD)
+# 1. ZMIENNE GLOBALNE ŚRODOWISKA
 # ------------------------------------------------------------------------------
 variables:
   catalog_name:
     description: "Katalog w Unity Catalog"
-    default: "dbr_dev" 
+    default: "dbr_dev"
   schema_name:
     description: "Schemat bazy danych dla tabel"
-    default: "pawelnowak2004pri219" 
-  landing_zone_path:
-    description: "Ścieżka do surowych plików CSV/JSON"
-    default: "/Volumes/dbr_dev/pawelnowak2004pri219/landing_zone" 
-  json_landing_zone_path:
-    description: "Ścieżka do surowych plików JSON"
-    default: "${var.landing_zone_path}/yt_snapshots"
-  csv_landing_zone_path:
-    description: "Ścieżka do surowych plików csv (do metadanych csv)"
-    default: "${var.landing_zone_path}/music_metadata"
+    default: "music_analytics"
+  landing_zone_name:
+    description: "Nazwa wolumenu Unity Catalog"
+    default: "landing_zone"
 
 # ------------------------------------------------------------------------------
-# 2. ŚRODOWISKA (TARGETS) - Wdrażanie z użyciem złotych rad Artema
+# 2. ŚRODOWISKA (TARGETS)
 # ------------------------------------------------------------------------------
 targets:
   dev:
     default: true
     workspace:
-      host: https://dbc-d5499b55-ff1f.cloud.databricks.com/?o=7474650248019956
-    
-    # Obejście problemu z prefiksami .dev_ wg dyskusji na Discordzie
+      host: https://adb-7405604503619901.1.azuredatabricks.net
     presets:
       name_prefix: ''
 
@@ -52,7 +44,6 @@ resources:
       schema: ${var.schema_name}
       continuous: false
       
-      # Wskazujemy nasze czyste pliki architektury
       libraries:
         - file:
             path: src/pipelines/01_bronze_ingestion.py
@@ -61,9 +52,10 @@ resources:
         - file:
             path: src/pipelines/03_gold_aggregations.py
             
-      # Przekazywanie zmiennych do PySparka (odczytasz je przez spark.conf.get)
       configuration:
-        music_project.landing_zone_path: ${var.landing_zone_path}
+        music_project.catalog_name: ${var.catalog_name}
+        music_project.schema_name: ${var.schema_name}
+        music_project.volume_name: ${var.landing_zone_name}
 
   # B. ORKIESTRATOR (DATABRICKS JOB)
   jobs:
@@ -71,23 +63,37 @@ resources:
       name: "Full Music ETL Workflow"
       
       tasks:
-        # ZADANIE 1: Odpal producenta, żeby pobrał świeże dane z YouTube'a
+        # TASK 0: Inicjalizacja infrastruktury (Tworzy Katalog, Schemat i Wolumen)
+        - task_key: setup_infrastructure
+          job_cluster_key: shared_job_cluster
+          spark_python_task:
+            python_file: src/setup/music_pipeline_setup.py
+            
+        # TASK 1: Pobieranie danych (Musi czekać na setup_infrastructure!)
         - task_key: fetch_youtube_data
+          depends_on:
+            - task_key: setup_infrastructure
           job_cluster_key: shared_job_cluster
           spark_python_task:
             python_file: src/producer/save_yt_stats_snapshot.py
             
-        # ZADANIE 2: Gdy producent skończy, uruchom DLT, żeby te dane przerobić (Bronze->Silver->Gold)
+        # TASK 2: Uruchomienie potoku DLT (Musi czekać na producenta)
         - task_key: run_dlt_pipeline
           depends_on:
             - task_key: fetch_youtube_data
           pipeline_task:
             pipeline_id: ${resources.pipelines.music_dlt_pipeline.id}
 
-      # Definicja klastra, który obudzi się tylko do wykonania zadania nr 1
       job_clusters:
         - job_cluster_key: shared_job_cluster
           new_cluster:
             spark_version: 14.3.x-scala2.12
-            node_type_id: Standard_DS3_v2  # Dostosuj do typu maszyny dostępnego w Twoim Azure/AWS
+            node_type_id: Standard_DS3_v2
             num_workers: 1
+            data_security_mode: SINGLE_USER
+            spark_conf:
+              music_project.catalog_name: ${var.catalog_name}
+              music_project.schema_name: ${var.schema_name}
+              music_project.volume_name: ${var.landing_zone_name}
+            spark_env_vars:
+              YT_API_KEY: "{{secrets/pawelnowak2004pri219_scope/pawelnowak-youtube-api}}"
