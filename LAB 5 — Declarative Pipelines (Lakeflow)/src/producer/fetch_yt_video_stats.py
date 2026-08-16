@@ -11,13 +11,18 @@ Execution context: imported as a module by the snapshot runner or run
 directly as a Databricks job task. Requires an active SparkSession.
 """
 
-import requests
-from src.setup.music_pipeline_setup import spark, yt_api_key, yt_video_url, music_metadata_file,
-metadata_music_schema
-from pyspark.sql.functions import col, regexp_extract
-from pyspark.sql.types import StructType
-from pyspark.sql import DataFrame
 from datetime import datetime
+
+import requests
+from pyspark.sql.functions import col, regexp_extract
+
+from src.setup.music_pipeline_setup import (
+    metadata_music_schema,
+    music_metadata_file,
+    spark,
+    yt_api_key,
+    yt_video_url,
+)
 
 def find_video_ids(csv_file_path:str) -> list[str]:
     """Extract YouTube video IDs from the ``url`` column of a metadata table.
@@ -67,6 +72,11 @@ def read_data_from_api(batch_size: int = 50) -> list[dict]:
         ``view_count``, ``like_count``, ``comment_count``, ``author``,
         ``song_title``. Non-numeric counts are coerced to ``None``.
     """
+    if not yt_api_key:
+        raise EnvironmentError(
+            "YT_API_KEY is not configured. Set it as a cluster env var or provide DBRICKS_SECRET_SCOPE/DBRICKS_SECRET_KEY."
+        )
+
     video_ids_list = find_video_ids(music_metadata_file)
 
     if not video_ids_list:
@@ -114,11 +124,12 @@ def read_data_from_api(batch_size: int = 50) -> list[dict]:
                 video_response = {
                     "video_id": video_id,
                     "published_at": published_at,
-                    "author": author
+                    "author": author,
                     "song_title": video_title,
                     "view_count": viewCount,
                     "like_count": likeCount,
                     "comment_count": commentCount,
+                    "_ingested_at": datetime.utcnow().isoformat(),
                 }
                 all_video_responses.append(video_response)
 

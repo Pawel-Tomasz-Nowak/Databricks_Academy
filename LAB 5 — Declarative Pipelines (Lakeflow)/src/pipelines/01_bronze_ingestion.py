@@ -1,10 +1,3 @@
-# Project root setup for absolute imports
-import os
-import sys
-project_root = os.path.abspath(os.path.join(os.getcwd(), '../..'))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
 from src.setup.music_pipeline_setup import (
     bronze_schema_path,
     json_landing_path,
@@ -15,6 +8,7 @@ from src.setup.music_pipeline_setup import (
 )
 
 import dlt
+from databricks.sdk.runtime import spark
 
 
 
@@ -57,6 +51,7 @@ def bronze_music_metadata():
     return (
         spark.read
         .format("csv")
+        .option("delimiter", ";")
         .option("header", "true")
         .schema(metadata_music_schema)
         .load(music_metadata_file)

@@ -67,7 +67,10 @@ resources:
         - task_key: setup_infrastructure
           job_cluster_key: shared_job_cluster
           spark_python_task:
-            python_file: src/setup/music_pipeline_setup.py
+            python_file: src/setup/run_setup.py
+          libraries:
+            - pypi:
+                package: databricks-sdk>=0.28.0
             
         # TASK 1: Pobieranie danych (Musi czekać na setup_infrastructure!)
         - task_key: fetch_youtube_data
@@ -76,6 +79,9 @@ resources:
           job_cluster_key: shared_job_cluster
           spark_python_task:
             python_file: src/producer/save_yt_stats_snapshot.py
+          libraries:
+            - pypi:
+                package: databricks-sdk>=0.28.0
             
         # TASK 2: Uruchomienie potoku DLT (Musi czekać na producenta)
         - task_key: run_dlt_pipeline

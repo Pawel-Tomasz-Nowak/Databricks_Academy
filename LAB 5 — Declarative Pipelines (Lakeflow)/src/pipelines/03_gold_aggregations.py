@@ -1,12 +1,4 @@
-# Project root setup for absolute imports
-import os
-import sys
-project_root = os.path.abspath(os.path.join(os.getcwd(), '../..'))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
 from src.setup.music_pipeline_setup import (
-    music_metadata_tables,
     music_stats_tables
 
 )
