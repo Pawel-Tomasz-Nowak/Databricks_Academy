@@ -5,39 +5,28 @@ The file is intentionally self-contained because DLT executes modules through
 exec() and does not expose __file__ or repo-local import paths.
 """
 
+
 import dlt
+import os
+import sys
+
+
+bundle_root_dir = os.getcwd() # it'l return: "/Workspace/Users/pawel.nowak@twoja_firma.com/.bundle/music_project/dev/files"
+
+if bundle_root_dir not in sys.path:
+    sys.path.insert(0, bundle_root_dir)
+
+
+from src.setup.music_pipeline_setup import (
+    json_landing_path,
+    music_metadata_file,
+    bronze_schema_path,
+    music_metadata_tables,
+    music_stats_tables,
+    metadata_music_schema
+)
+
 from databricks.sdk.runtime import spark
-from pyspark.sql.types import DateType, StringType, StructField, StructType
-
-catalog_name = spark.conf.get("music_project.catalog_name", "dbr_dev")
-music_schema = spark.conf.get("music_project.schema_name", "music_analytics")
-volume_name = spark.conf.get("music_project.volume_name", "landing_zone")
-
-json_landing_path = f"/Volumes/{catalog_name}/{music_schema}/{volume_name}/yt_snapshots"
-music_metadata_file = f"/Volumes/{catalog_name}/{music_schema}/{volume_name}/music_metadata/music_discography.csv"
-bronze_schema_path = f"/Volumes/{catalog_name}/{music_schema}/{volume_name}/schemas/bronze_music_stats"
-
-music_metadata_tables = {
-    "bronze": f"{catalog_name}.{music_schema}.bronze_music_metadata",
-    "silver": f"{catalog_name}.{music_schema}.silver_music_metadata",
-    "silver_history": f"{catalog_name}.{music_schema}.silver_music_metadata_history",
-    "gold": f"{catalog_name}.{music_schema}.gold_music_metadata",
-}
-
-music_stats_tables = {
-    "bronze": f"{catalog_name}.{music_schema}.bronze_music_stats",
-    "silver": f"{catalog_name}.{music_schema}.silver_music_stats",
-    "gold": f"{catalog_name}.{music_schema}.gold_music_stats",
-}
-
-metadata_music_schema = StructType([
-    StructField("url", StringType(), True),
-    StructField("title", StringType(), True),
-    StructField("album", StringType(), True),
-    StructField("album_release_date", DateType(), True),
-    StructField("author", StringType(), True),
-])
-
 
 # Streaming source (autoloader for JSON files from YouTube)
 @dlt.table(

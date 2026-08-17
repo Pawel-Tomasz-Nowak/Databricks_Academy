@@ -5,12 +5,20 @@ materialize the API payload into a stable landing file that the DLT bronze layer
 can pick up reliably. Keeping the write step separate helps the pipeline stay
 idempotent and makes the source of truth for the raw feed explicit.
 """
+import os
+import sys
+
+bundle_root_dir = os.getcwd()
+if bundle_root_dir not in sys.path:
+    sys.path.insert(0, bundle_root_dir)
+
+
 
 import json
 from datetime import datetime
 
-from etl_package.setup.music_pipeline_setup import json_landing_path
-from etl_package.producer.fetch_yt_video_stats import read_data_from_api
+from src.setup.music_pipeline_setup import json_landing_path
+from src.producer.fetch_yt_video_stats import read_data_from_api
 
 # ---------------------------------------------------------------------------
 # Fetch and persist

@@ -17,23 +17,6 @@ metadata_music_schema = StructType([
 ])
 
 
-def _load_env_file(env_path: Path) -> None:
-    """Load key=value pairs from a .env file into os.environ."""
-    if not env_path.exists():
-        return
-    with env_path.open(encoding="utf-8") as file:
-        for line in file:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            key, sep, value = line.partition("=")
-            if sep:
-                os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
-
-
-_env_path = Path(__file__).resolve().parents[3] / ".env"
-_load_env_file(_env_path)
-
 
 spark = SparkSession.getActiveSession() or SparkSession.builder.getOrCreate()
 w = WorkspaceClient()
@@ -77,11 +60,8 @@ yt_video_url: str = "https://www.googleapis.com/youtube/v3/videos"
 
 
 def get_yt_api_key() -> str:
-    """Resolve YouTube API key from env var or Databricks secret reference."""
-    direct_key = os.environ.get("YT_API_KEY")
-    if direct_key:
-        return direct_key
-
+    """Resolve YouTube API key from Databricks secret reference."""
+ 
     scope = os.environ.get("DBRICKS_SECRET_SCOPE")
     secret_key = os.environ.get("DBRICKS_SECRET_KEY")
     if scope and secret_key:
