@@ -52,6 +52,8 @@ resources:
         music_project.catalog_name: ${var.catalog_name}
         music_project.schema_name: ${var.schema_name}
         music_project.volume_name: ${var.landing_zone_name}
+        secret_scope_val: ${var.secret_scope_val}
+        secret_key_val: ${var.secret_key_val}
         bundle_root: ${workspace.file_path}/files
 
       libraries:
@@ -85,6 +87,9 @@ resources:
           spark_python_task:
             python_file: src/setup/music_pipeline_setup.py
             base_parameters:
+              - "${var.catalog_name}"
+              - "${var.schema_name}"
+              - "${var.landing_zone_name}"
               - "${var.secret_scope_val}"
               - "${var.secret_key_val}"
 

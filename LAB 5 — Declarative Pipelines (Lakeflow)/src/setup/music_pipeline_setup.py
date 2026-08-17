@@ -2,8 +2,6 @@
 
 import os
 import sys
-from databricks.sdk import WorkspaceClient
-from pyspark.sql import SparkSession
 from pyspark.sql.types import DateType, StringType, StructField, StructType
 
 
@@ -16,21 +14,28 @@ metadata_music_schema = StructType([
 ])
 
 
+from pyspark.dbutils import DBUtils
 
-spark = SparkSession.getActiveSession() or SparkSession.builder.getOrCreate()
-w = WorkspaceClient()
+dbutils = DBUtils(spark)
+
+catalog_name = spark.conf.get("music_project.catalog_name")
+music_schema = spark.conf.get("music_project.schema_name")
+volume_name = spark.conf.get("music_project.volume_name")
+
+scope = spark.conf.get("secret_scope_val")
+secret_key = spark.conf.get("secret_key_val")
+bundle_root = spark.conf.get("bundle_root")
 
 
-def _spark_conf_or_default(key: str, default: str) -> str:
-    try:
-        return spark.conf.get(key)
-    except Exception:
-        return default
+if bundle_root and bundle_root not in sys.path:
+    sys.path.append(bundle_root)
+
+# Bezpieczne pobranie właściwego sekretu z Azure Key Vault / Databricks Secrets
+yt_api_key = dbutils.secrets.get(scope=scope, key=secret_key)
 
 
-catalog_name: str = _spark_conf_or_default("music_project.catalog_name", "dbr_dev")
-music_schema: str = _spark_conf_or_default("music_project.schema_name", "music_analytics")
-volume_name: str = _spark_conf_or_default("music_project.volume_name", "landing_zone")
+
+
 
 volume_path: str = f"{music_schema}.{volume_name}"
 json_landing_path: str = f"/Volumes/{catalog_name}/{music_schema}/{volume_name}/yt_snapshots"
@@ -57,21 +62,6 @@ bronze_schema_path = f"/Volumes/{catalog_name}/{music_schema}/{volume_name}/sche
 
 yt_video_url: str = "https://www.googleapis.com/youtube/v3/videos"
 
-
-def get_yt_api_key() -> str:
-    """Resolve YouTube API key from Databricks secret reference."""
-
-    # Read parameters passed from databricks.yml parameters list
-    # sys.argv contains the script path at index 0, followed by your parameters
-    scope = sys.argv if len(sys.argv) > 1 else os.environ.get("DBRICKS_SECRET_SCOPE")
-    secret_key = sys.argv if len(sys.argv) > 2 else os.environ.get("DBRICKS_SECRET_KEY")
-
-    if scope and secret_key:
-        return w.dbutils.secrets.get(scope=scope, key=secret_key)
-
-    raise EnvironmentError(
-        "YouTube API key is missing. Set YT_API_KEY or DBRICKS_SECRET_SCOPE/DBRICKS_SECRET_KEY."
-    )
 
 
 def _catalog_exists(name: str) -> bool:
@@ -116,8 +106,3 @@ _BOOTSTRAP_DONE = False
 if __name__ == "__main__":
     bootstrap_infrastructure()
 
-
-try:
-    yt_api_key = get_yt_api_key()
-except EnvironmentError:
-    yt_api_key = None
