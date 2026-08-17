@@ -6,15 +6,19 @@ across snapshots so the per-hour delta logic can be meaningful.
 """
 
 import dlt
-import os
-import sys
+import os, sys
+
+from pyspark.sql import SparkSession
 
 
-bundle_root_dir = os.getcwd() 
-
-if bundle_root_dir not in sys.path:
-    sys.path.insert(0, bundle_root_dir)
-
+try:
+    spark = SparkSession.getActiveSession()
+    if spark:
+        bundle_root = spark.conf.get("bundle_root", None)
+        if bundle_root and bundle_root not in sys.path:
+            sys.path.append(bundle_root)
+except Exception:
+    pass
 
 from src.transformations.delta_per_hour_metrics import compute_per_hour_deltas
 from pyspark.sql import functions as F

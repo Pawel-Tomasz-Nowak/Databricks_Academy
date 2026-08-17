@@ -1,8 +1,7 @@
 """Shared configuration and bootstrap for the LAB 5 music pipeline."""
 
 import os
-from pathlib import Path
-
+import sys
 from databricks.sdk import WorkspaceClient
 from pyspark.sql import SparkSession
 from pyspark.sql.types import DateType, StringType, StructField, StructType
@@ -61,9 +60,12 @@ yt_video_url: str = "https://www.googleapis.com/youtube/v3/videos"
 
 def get_yt_api_key() -> str:
     """Resolve YouTube API key from Databricks secret reference."""
- 
-    scope = os.environ.get("DBRICKS_SECRET_SCOPE")
-    secret_key = os.environ.get("DBRICKS_SECRET_KEY")
+
+    # Read parameters passed from databricks.yml parameters list
+    # sys.argv contains the script path at index 0, followed by your parameters
+    scope = sys.argv if len(sys.argv) > 1 else os.environ.get("DBRICKS_SECRET_SCOPE")
+    secret_key = sys.argv if len(sys.argv) > 2 else os.environ.get("DBRICKS_SECRET_KEY")
+
     if scope and secret_key:
         return w.dbutils.secrets.get(scope=scope, key=secret_key)
 

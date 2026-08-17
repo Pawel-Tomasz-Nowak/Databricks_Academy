@@ -5,13 +5,20 @@ materialize the API payload into a stable landing file that the DLT bronze layer
 can pick up reliably. Keeping the write step separate helps the pipeline stay
 idempotent and makes the source of truth for the raw feed explicit.
 """
-import os
-import sys
+import sys, os
 
-bundle_root_dir = os.getcwd()
-if bundle_root_dir not in sys.path:
-    sys.path.insert(0, bundle_root_dir)
+def _init_bundle_path():
+    root = None
+    cwd = os.getcwd()
+    if "/files" in cwd:
+        root = cwd.split("/files")[0] + "/files"
+    elif sys.argv and "/files" in sys.argv[0]:
+        root = os.path.abspath(sys.argv[0]).split("/files")[0] + "/files"
+    
+    if root and root not in sys.path:
+        sys.path.insert(0, root)
 
+_init_bundle_path()
 
 
 import json

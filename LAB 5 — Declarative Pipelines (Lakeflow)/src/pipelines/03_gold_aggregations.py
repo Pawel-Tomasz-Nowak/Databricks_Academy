@@ -6,8 +6,20 @@ loading the full streaming history back into a reporting tool.
 """
 
 import dlt
-import os
-import sys
+import os, sys
+
+from pyspark.sql import SparkSession
+
+
+try:
+    spark = SparkSession.getActiveSession()
+    if spark:
+        bundle_root = spark.conf.get("bundle_root", None)
+        if bundle_root and bundle_root not in sys.path:
+            sys.path.append(bundle_root)
+except Exception:
+    pass
+
 
 
 bundle_root_dir = os.getcwd() 
