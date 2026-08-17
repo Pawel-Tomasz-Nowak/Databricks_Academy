@@ -21,7 +21,7 @@ def _load_env_file(env_path: Path) -> None:
     """Load key=value pairs from a .env file into os.environ."""
     if not env_path.exists():
         return
-    with env_path.open(encoding="utf-8") as takfile:
+    with env_path.open(encoding="utf-8") as file:
         for line in file:
             line = line.strip()
             if not line or line.startswith("#"):
@@ -31,7 +31,7 @@ def _load_env_file(env_path: Path) -> None:
                 os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
 
 
-_env_path = Path(__file__).resolve().parents[2] / ".env"
+_env_path = Path(__file__).resolve().parents[3] / ".env"
 _load_env_file(_env_path)
 
 
@@ -139,5 +139,3 @@ try:
     yt_api_key = get_yt_api_key()
 except EnvironmentError:
     yt_api_key = None
-
-    

@@ -6,6 +6,11 @@
 bundle:
   name: music_popularity_spike_detection
 
+artifacts:
+  etl_artifact:
+    type: whl
+    path: .
+
 # ------------------------------------------------------------------------------
 # 1. ZMIENNE GLOBALNE ŚRODOWISKA
 # ------------------------------------------------------------------------------
@@ -35,7 +40,7 @@ targets:
 # 3. ZASOBY (Orkiestracja i Pipeline)
 # ------------------------------------------------------------------------------
 resources:
-  
+
   # A. DEKLARATYWNY POTOK DLT (Lakeflow)
   pipelines:
     music_dlt_pipeline:
@@ -43,15 +48,29 @@ resources:
       catalog: ${var.catalog_name}
       schema: ${var.schema_name}
       continuous: false
-      
+
       libraries:
+        - file:
+            path: src/etl_package/__init__.py
+        - file:
+            path: src/etl_package/setup/__init__.py
+        - file:
+            path: src/etl_package/setup/music_pipeline_setup.py
+        - file:
+            path: src/etl_package/transformations/__init__.py
+        - file:
+            path: src/etl_package/transformations/delta_per_hour_metrics.py
+        - file:
+            path: src/etl_package/transformations/aggregate_author_stats_by_minute.py
+        - file:
+            path: src/etl_package/transformations/aggregate_video_stats_by_minute.py
         - file:
             path: src/pipelines/01_bronze_ingestion.py
         - file:
             path: src/pipelines/02_silver_cleaning.py
         - file:
             path: src/pipelines/03_gold_aggregations.py
-            
+
       configuration:
         music_project.catalog_name: ${var.catalog_name}
         music_project.schema_name: ${var.schema_name}
@@ -61,7 +80,7 @@ resources:
   jobs:
     music_etl_orchestrator:
       name: "Full Music ETL Workflow"
-      
+
       tasks:
         # TASK 0: Inicjalizacja infrastruktury (Tworzy Katalog, Schemat i Wolumen)
         - task_key: setup_infrastructure
@@ -71,7 +90,8 @@ resources:
           libraries:
             - pypi:
                 package: databricks-sdk>=0.28.0
-            
+            - whl: ./dist/*.whl
+
         # TASK 1: Pobieranie danych (Musi czekać na setup_infrastructure!)
         - task_key: fetch_youtube_data
           depends_on:
@@ -82,7 +102,8 @@ resources:
           libraries:
             - pypi:
                 package: databricks-sdk>=0.28.0
-            
+            - whl: ./dist/*.whl
+
         # TASK 2: Uruchomienie potoku DLT (Musi czekać na producenta)
         - task_key: run_dlt_pipeline
           depends_on:

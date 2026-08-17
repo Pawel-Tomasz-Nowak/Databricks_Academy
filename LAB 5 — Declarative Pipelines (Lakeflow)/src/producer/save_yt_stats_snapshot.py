@@ -17,8 +17,8 @@ Side effects:
 import json
 from datetime import datetime
 
-from src.setup.music_pipeline_setup import json_landing_path
-from src.producer.fetch_yt_video_stats import read_data_from_api
+from etl_package.setup.music_pipeline_setup import json_landing_path
+from etl_package.producer.fetch_yt_video_stats import read_data_from_api
 
 # ---------------------------------------------------------------------------
 # Fetch and persist
