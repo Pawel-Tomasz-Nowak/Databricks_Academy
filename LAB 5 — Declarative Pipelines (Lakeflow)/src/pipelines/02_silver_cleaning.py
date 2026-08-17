@@ -1,12 +1,13 @@
 """Silver layer processing for music analytics pipeline.
 
-Cleaning, validation, and delta calculations for streaming music statistics.
-The file is intentionally self-contained because DLT does not expose __file__.
+This stage keeps the bronze data trustworthy enough for downstream reporting.
+The expensive part is not formatting itself; it is making each row comparable
+across snapshots so the per-hour delta logic can be meaningful.
 """
 
 import dlt
 from databricks.sdk.runtime import spark
-from pyspark.sql import Window, functions as F
+from pyspark.sql import DataFrame, Window, functions as F
 from pyspark.sql.functions import abs, col, current_timestamp, lag, round, unix_timestamp, when
 
 catalog_name = spark.conf.get("music_project.catalog_name", "dbr_dev")
@@ -27,7 +28,22 @@ music_stats_tables = {
 }
 
 
-def compute_per_hour_deltas(df):
+def compute_per_hour_deltas(df: DataFrame) -> DataFrame:
+    """Add per-hour engagement deltas for each video between consecutive snapshots.
+
+    The silver layer is intentionally built around a per-video ordering over
+    ``_ingested_at``. That ordering lets the pipeline compute trends such as
+    views gained per hour, which is the signal the gold aggregate layer needs.
+
+    Args:
+        df: Clean bronze-like DataFrame containing ``video_id``,
+            ``_ingested_at``, ``view_count``, ``like_count``, and
+            ``comment_count``.
+
+    Returns:
+        The same DataFrame enriched with per-hour delta metrics and without the
+        intermediate raw-delta columns used during calculation.
+    """
     seconds_per_hour = 3600.0
     near_zero_threshold = 1e-8
 

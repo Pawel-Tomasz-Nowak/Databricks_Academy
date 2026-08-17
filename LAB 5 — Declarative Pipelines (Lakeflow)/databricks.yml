@@ -1,8 +1,6 @@
 # ==============================================================================
 # DATABRICKS ASSET BUNDLES (DABs) — LAB 5
-# System detekcji skoków popularności muzyki na YouTube
-# ==============================================================================
-
+# Music popularity spike detection system for YouTube
 bundle:
   name: music_popularity_spike_detection
 
@@ -12,21 +10,21 @@ artifacts:
     path: .
 
 # ------------------------------------------------------------------------------
-# 1. ZMIENNE GLOBALNE ŚRODOWISKA
+# 1. GLOBAL ENVIRONMENT VARIABLES
 # ------------------------------------------------------------------------------
 variables:
   catalog_name:
-    description: "Katalog w Unity Catalog"
+    description: "Unity Catalog catalog name"
     default: "dbr_dev"
   schema_name:
-    description: "Schemat bazy danych dla tabel"
+    description: "Database schema for the tables"
     default: "music_analytics"
   landing_zone_name:
-    description: "Nazwa wolumenu Unity Catalog"
+    description: "Unity Catalog volume name"
     default: "landing_zone"
 
 # ------------------------------------------------------------------------------
-# 2. ŚRODOWISKA (TARGETS)
+# 2. TARGETS (ENVIRONMENTS)
 # ------------------------------------------------------------------------------
 targets:
   dev:
@@ -37,11 +35,11 @@ targets:
       name_prefix: ''
 
 # ------------------------------------------------------------------------------
-# 3. ZASOBY (Orkiestracja i Pipeline)
+# 3. RESOURCES (ORCHESTRATION AND PIPELINES)
 # ------------------------------------------------------------------------------
 resources:
 
-  # A. DEKLARATYWNY POTOK DLT (Lakeflow)
+  # A. DECLARATIVE DLT PIPELINE (Lakeflow)
   pipelines:
     music_dlt_pipeline:
       name: "Music Popularity DLT Pipeline"
@@ -69,7 +67,7 @@ resources:
       name: "Full Music ETL Workflow"
 
       tasks:
-        # TASK 0: Inicjalizacja infrastruktury (Tworzy Katalog, Schemat i Wolumen)
+        # TASK 0: Infrastructure bootstrap (creates the catalog, schema, and volume)
         - task_key: setup_infrastructure
           job_cluster_key: shared_job_cluster
           spark_python_task:
@@ -79,7 +77,7 @@ resources:
                 package: databricks-sdk>=0.28.0
             - whl: ./dist/*.whl
 
-        # TASK 1: Pobieranie danych (Musi czekać na setup_infrastructure!)
+        # TASK 1: Data ingestion (must wait for setup_infrastructure)
         - task_key: fetch_youtube_data
           depends_on:
             - task_key: setup_infrastructure
@@ -91,7 +89,7 @@ resources:
                 package: databricks-sdk>=0.28.0
             - whl: ./dist/*.whl
 
-        # TASK 2: Uruchomienie potoku DLT (Musi czekać na producenta)
+        # TASK 2: Start the DLT pipeline (must wait for the producer task)
         - task_key: run_dlt_pipeline
           depends_on:
             - task_key: fetch_youtube_data

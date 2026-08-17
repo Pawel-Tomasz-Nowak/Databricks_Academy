@@ -1,12 +1,13 @@
 """Gold layer aggregations for music analytics pipeline.
 
-Business-ready aggregated views for author and video engagement metrics.
-The file is intentionally self-contained because DLT does not expose __file__.
+The value of the gold layer is not the raw row count; it is the business-ready
+view over time. Minute-level aggregation makes the trend readable without
+loading the full streaming history back into a reporting tool.
 """
 
 import dlt
 from databricks.sdk.runtime import spark
-from pyspark.sql import functions as F
+from pyspark.sql import DataFrame, functions as F
 
 catalog_name = spark.conf.get("music_project.catalog_name", "dbr_dev")
 music_schema = spark.conf.get("music_project.schema_name", "music_analytics")
@@ -19,7 +20,13 @@ music_stats_tables = {
 }
 
 
-def aggregate_author_stats_by_minute(silver_df):
+def aggregate_author_stats_by_minute(silver_df: DataFrame) -> DataFrame:
+    """Aggregate total engagement metrics for each author and minute bucket.
+
+    Keeping this at minute granularity is intentional: it gives enough temporal
+    resolution for trend analysis without producing an unreadable time series of
+    every individual event.
+    """
     silver_df_minutes = silver_df.withColumn("_ingested_at_minutes", F.date_trunc("minute", F.col("_ingested_at")))
     return (
         silver_df_minutes.groupBy("author", "_ingested_at_minutes")
@@ -33,7 +40,12 @@ def aggregate_author_stats_by_minute(silver_df):
     )
 
 
-def aggregate_video_stats_by_minute(silver_df):
+def aggregate_video_stats_by_minute(silver_df: DataFrame) -> DataFrame:
+    """Aggregate total engagement for each song and minute bucket.
+
+    This keeps the per-track signal easy to follow and makes the downstream gold
+    table useful for artist-level and content-level trend monitoring.
+    """
     silver_df_minutes = silver_df.withColumn("_ingested_at_minutes", F.date_trunc("minute", F.col("_ingested_at")))
     return (
         silver_df_minutes.groupBy("author", "song_title", "_ingested_at_minutes")
@@ -48,7 +60,7 @@ def aggregate_video_stats_by_minute(silver_df):
 
 @dlt.table(
     name=music_stats_tables["gold"] + "_by_author",
-    comment="Tabela biznesowa pokazująca łączna liczbę różnych miar (polubienia liczby koemntarzy liczby wyświetleń)",
+    comment="Business view summarising total engagement metrics for authors across minute-level snapshots.",
     table_properties={"quality": "gold"},
 )
 def gold_author_stast_by_minute():
@@ -58,7 +70,7 @@ def gold_author_stast_by_minute():
 
 @dlt.table(
     name=music_stats_tables["gold"] + "_by_video",
-    comment="Tabela biznesowa pokazująca liczbe wyświetleń/polubień/komentarzy danego video",
+    comment="Business view showing the total views, likes, and comments for each video by minute.",
     table_properties={"quality": "gold"},
 )
 def gold_video_stast_by_minute():

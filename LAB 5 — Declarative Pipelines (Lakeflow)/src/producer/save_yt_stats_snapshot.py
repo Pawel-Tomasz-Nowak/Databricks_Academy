@@ -1,17 +1,9 @@
-"""
-save_yt_stats_snapshot.py
--------------------------
-Point-in-time snapshot runner: fetches the latest YouTube video statistics
-via the API and persists them as a timestamped JSON file to the landing Volume.
+"""Persist the fetched YouTube snapshot to the landing volume.
 
-Execution context: run via ``%run`` or as a Databricks job task.
-Requires ``dbutils`` (provided by the cluster).
-
-Side effects:
-    - Calls the YouTube Data API v3 (network I/O).
-    - Creates ``json_landing_path`` (the logic is in the music_pipeline_setup) if the directory is absent.
-    - Writes a single JSON file to ``json_landing_path`` with a compact
-      timestamp suffix (e.g. ``yt_stats_20260728_143000.json``).
+This task is intentionally small and side-effect-heavy: its real value is to
+materialize the API payload into a stable landing file that the DLT bronze layer
+can pick up reliably. Keeping the write step separate helps the pipeline stay
+idempotent and makes the source of truth for the raw feed explicit.
 """
 
 import json
@@ -25,7 +17,8 @@ from etl_package.producer.fetch_yt_video_stats import read_data_from_api
 # ---------------------------------------------------------------------------
 all_video_responses: list[dict] = read_data_from_api()
 
-timestamp_str: str = datetime.now().strftime("%Y%m%d_%H%M%S")  # compact ISO-8601 suffix
+timestamp_str: str = datetime.now().strftime("%Y%m%d_%H%M%S")
+# The timestamp keeps each landing file unique and makes retries observable.
 json_file_path: str = f"{json_landing_path}/yt_stats_{timestamp_str}.json"
 
 with open(json_file_path, "w", encoding="utf-8") as f:
