@@ -1,49 +1,56 @@
 # ==============================================================================
-# DATABRICKS ASSET BUNDLES (DABs) — LAB 5
-# Music popularity spike detection system for YouTube
+# DATABRICKS ASSET BUNDLES (DABs) CONFIGURATION - LAB 5
+# Music Popularity Spike Detection System (YouTube & DLT Pipeline)
+# ==============================================================================
 bundle:
   name: music_popularity_spike_detection
 
 # ------------------------------------------------------------------------------
-# 1. GLOBAL ENVIRONMENT VARIABLES
+# 1. ENVIRONMENT VARIABLES (UNITY CATALOG & COMPUTE)
 # ------------------------------------------------------------------------------
 variables:
   catalog_name:
-    description: "Unity Catalog catalog name"
+    description: "Target Unity Catalog name (e.g. dbr_dev / dbr_prod)"
     default: "dbr_dev"
   schema_name:
-    description: "Database schema for the tables"
+    description: "Target schema for pipeline tables"
     default: "music_analytics"
   landing_zone_name:
-    description: "Unity Catalog volume name"
+    description: "Volume name for raw JSON payloads and metadata"
     default: "landing_zone"
+  existing_cluster_id:
+    description: "Cluster ID for existing student compute (Student_cluster / pnowak_cluster)"
+    default: "0702-132442-toro5spu"
 
 # ------------------------------------------------------------------------------
-# 2. TARGETS (ENVIRONMENTS)
-# ------------------------------------------------------------------------------
-targets:
-  dev:
-    default: true
-    workspace:
-      host: https://adb-7405604503619901.1.azuredatabricks.net
-    presets:
-      name_prefix: ''
-
-# ------------------------------------------------------------------------------
-# 3. RESOURCES (ORCHESTRATION AND PIPELINES)
+# 2. RESOURCES (DLT PIPELINE & MULTI-TASK WORKFLOW ORCHESTRATOR)
 # ------------------------------------------------------------------------------
 resources:
 
-  # A. DECLARATIVE DLT PIPELINE (Lakeflow)
+  # ----------------------------------------------------------------------------
+  # A. Lakeflow Spark Declarative Pipeline (Delta Live Tables)
+  # ----------------------------------------------------------------------------
   pipelines:
     music_dlt_pipeline:
-      name: "Music Popularity DLT Pipeline"
+      name: "[${bundle.target}] Music Popularity Lakeflow Pipeline"
       catalog: ${var.catalog_name}
-      schema: ${var.schema_name}
-      continuous: false
+      target: ${var.schema_name}
 
+      # Cost optimization settings (FinOps)
+      continuous: false                 # Triggered mode: runs once and stops
+      photon: false                     # Disable Photon to avoid extra DBU charges
+      serverless: false                 # Use standard pool/cluster instead of expensive serverless
+      edition: "PRO"                    # Required for data quality expectations (@dlt.expect)
+      channel: "CURRENT"
+
+      # Pass Unity Catalog paths to Spark session (spark.conf.get)
+      configuration:
+        music_project.catalog_name: ${var.catalog_name}
+        music_project.schema_name: ${var.schema_name}
+        music_project.volume_name: ${var.landing_zone_name}
+
+      # Medallion layer entrypoints
       libraries:
-        # Pipeline source files; each DLT file is intentionally self-contained.
         - file:
             path: src/pipelines/01_bronze_ingestion.py
         - file:
@@ -51,56 +58,62 @@ resources:
         - file:
             path: src/pipelines/03_gold_aggregations.py
 
-      configuration:
-        music_project.catalog_name: ${var.catalog_name}
-        music_project.schema_name: ${var.schema_name}
-        music_project.volume_name: ${var.landing_zone_name}
+      # Dedicated single-worker node for DLT
+      clusters:
+        - label: default
+          node_type_id: "Standard_D4ds_v5"
+          num_workers: 1
+          autoscale:
+            min_workers: 1
+            max_workers: 1
+            mode: ENHANCED
 
-  # B. ORKIESTRATOR (DATABRICKS JOB)
+  # ----------------------------------------------------------------------------
+  # B. Workflow Orchestrator (Multi-Task Job DAG)
+  # ----------------------------------------------------------------------------
   jobs:
     music_etl_orchestrator:
-      name: "Full Music ETL Workflow"
+      name: "[${bundle.target}] Full Music ETL Workflow"
 
       tasks:
-        # TASK 0: Infrastructure bootstrap (creates the catalog, schema, and volume)
-        - task_key: setup_infrastructure
-          job_cluster_key: shared_job_cluster
+        # STEP 1: Environment Setup (Schemas, Volumes, Seed Data)
+        - task_key: setup_environment
+          existing_cluster_id: ${var.existing_cluster_id}
           spark_python_task:
-            python_file: src/setup/run_setup.py
-          libraries:
-            - pypi:
-                package: databricks-sdk>=0.28.0
-            - whl: ./dist/*.whl
+            python_file: src/setup/music_pipeline_setup.py
 
-        # TASK 1: Data ingestion (must wait for setup_infrastructure)
+        # STEP 2: Fetch raw JSON snapshots from YouTube API to Landing Zone Volume
         - task_key: fetch_youtube_data
           depends_on:
-            - task_key: setup_infrastructure
-          job_cluster_key: shared_job_cluster
+            - task_key: setup_environment
+          existing_cluster_id: ${var.existing_cluster_id}
           spark_python_task:
             python_file: src/producer/save_yt_stats_snapshot.py
-          libraries:
-            - pypi:
-                package: databricks-sdk>=0.28.0
-            - whl: ./dist/*.whl
 
-        # TASK 2: Start the DLT pipeline (must wait for the producer task)
+        # STEP 3: Execute Declarative DLT Pipeline (Bronze -> Silver -> Gold)
         - task_key: run_dlt_pipeline
           depends_on:
             - task_key: fetch_youtube_data
           pipeline_task:
             pipeline_id: ${resources.pipelines.music_dlt_pipeline.id}
 
-      job_clusters:
-        - job_cluster_key: shared_job_cluster
-          new_cluster:
-            spark_version: 14.3.x-scala2.12
-            node_type_id: Standard_DS3_v2
-            num_workers: 1
-            data_security_mode: SINGLE_USER
-            spark_conf:
-              music_project.catalog_name: ${var.catalog_name}
-              music_project.schema_name: ${var.schema_name}
-              music_project.volume_name: ${var.landing_zone_name}
-            spark_env_vars:
-              YT_API_KEY: "{{secrets/pawelnowak2004pri219_scope/pawelnowak-youtube-api}}"
+# ------------------------------------------------------------------------------
+# 3. DEPLOYMENT TARGETS (DEV / PROD)
+# ------------------------------------------------------------------------------
+targets:
+  dev:
+    default: true
+    mode: development
+    variables:
+      catalog_name: "dbr_dev"
+      schema_name: "music_analytics"
+      landing_zone_name: "landing_zone"
+      existing_cluster_id: ${var.existing_cluster_id}
+
+  prod:
+    mode: production
+    variables:
+      catalog_name: "dbr_prod"
+      schema_name: "music_analytics"
+      landing_zone_name: "landing_zone"
+      existing_cluster_id: ${var.existing_cluster_id} 
