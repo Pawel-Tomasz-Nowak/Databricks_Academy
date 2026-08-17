@@ -6,88 +6,24 @@ across snapshots so the per-hour delta logic can be meaningful.
 """
 
 import dlt
-from databricks.sdk.runtime import spark
-from pyspark.sql import DataFrame, Window, functions as F
-from pyspark.sql.functions import abs, col, current_timestamp, lag, round, unix_timestamp, when
-
-catalog_name = spark.conf.get("music_project.catalog_name", "dbr_dev")
-music_schema = spark.conf.get("music_project.schema_name", "music_analytics")
-volume_name = spark.conf.get("music_project.volume_name", "landing_zone")
-
-music_metadata_tables = {
-    "bronze": f"{catalog_name}.{music_schema}.bronze_music_metadata",
-    "silver": f"{catalog_name}.{music_schema}.silver_music_metadata",
-    "silver_history": f"{catalog_name}.{music_schema}.silver_music_metadata_history",
-    "gold": f"{catalog_name}.{music_schema}.gold_music_metadata",
-}
-
-music_stats_tables = {
-    "bronze": f"{catalog_name}.{music_schema}.bronze_music_stats",
-    "silver": f"{catalog_name}.{music_schema}.silver_music_stats",
-    "gold": f"{catalog_name}.{music_schema}.gold_music_stats",
-}
+import os
+import sys
 
 
-def compute_per_hour_deltas(df: DataFrame) -> DataFrame:
-    """Add per-hour engagement deltas for each video between consecutive snapshots.
+bundle_root_dir = os.getcwd() 
 
-    The silver layer is intentionally built around a per-video ordering over
-    ``_ingested_at``. That ordering lets the pipeline compute trends such as
-    views gained per hour, which is the signal the gold aggregate layer needs.
+if bundle_root_dir not in sys.path:
+    sys.path.insert(0, bundle_root_dir)
 
-    Args:
-        df: Clean bronze-like DataFrame containing ``video_id``,
-            ``_ingested_at``, ``view_count``, ``like_count``, and
-            ``comment_count``.
 
-    Returns:
-        The same DataFrame enriched with per-hour delta metrics and without the
-        intermediate raw-delta columns used during calculation.
-    """
-    seconds_per_hour = 3600.0
-    near_zero_threshold = 1e-8
+from src.transformations.delta_per_hour_metrics import compute_per_hour_deltas
+from pyspark.sql import functions as F
 
-    df = df.withColumn("_ingested_at_hours", unix_timestamp(col("_ingested_at")) / seconds_per_hour)
-    video_window = Window.partitionBy("video_id").orderBy("_ingested_at_hours")
 
-    df = df.withColumn(
-        "hour_delta",
-        when(col("_ingested_at_hours").isNull() | lag("_ingested_at_hours", 1).over(video_window).isNull(), None)
-        .otherwise(col("_ingested_at_hours") - lag("_ingested_at_hours", 1).over(video_window)),
-    )
-    df = df.withColumn(
-        "view_delta",
-        when(col("view_count").isNull() | lag("view_count", 1).over(video_window).isNull(), None)
-        .otherwise(col("view_count") - lag("view_count", 1).over(video_window)),
-    )
-    df = df.withColumn(
-        "like_delta",
-        when(col("like_count").isNull() | lag("like_count", 1).over(video_window).isNull(), None)
-        .otherwise(col("like_count") - lag("like_count", 1).over(video_window)),
-    )
-    df = df.withColumn(
-        "comment_delta",
-        when(col("comment_count").isNull() | lag("comment_count", 1).over(video_window).isNull(), None)
-        .otherwise(col("comment_count") - lag("comment_count", 1).over(video_window)),
-    )
-
-    df = df.withColumn(
-        "view_delta_per_hour",
-        when(col("view_delta").isNull() | col("hour_delta").isNull() | (abs(col("hour_delta")) < near_zero_threshold), None)
-        .otherwise(round(col("view_delta") / col("hour_delta"), 1)),
-    )
-    df = df.withColumn(
-        "like_delta_per_hour",
-        when(col("like_delta").isNull() | col("hour_delta").isNull() | (abs(col("hour_delta")) < near_zero_threshold), None)
-        .otherwise(round(col("like_delta") / col("hour_delta"), 1)),
-    )
-    df = df.withColumn(
-        "comment_delta_per_hour",
-        when(col("comment_delta").isNull() | col("hour_delta").isNull() | (abs(col("hour_delta")) < near_zero_threshold), None)
-        .otherwise(round(col("comment_delta") / col("hour_delta"), 1)),
-    )
-
-    return df.drop("hour_delta", "view_delta", "like_delta", "comment_delta")
+from src.setup.music_pipeline_setup import (
+    music_metadata_tables,
+    music_stats_tables
+)
 
 
 @dlt.table(
@@ -100,7 +36,7 @@ def compute_per_hour_deltas(df: DataFrame) -> DataFrame:
 @dlt.expect_or_fail("valid_like_count", "like_count IS NULL OR like_count >= 0")
 @dlt.expect_or_fail("valid_comment_count", "comment_count IS NULL OR comment_count >= 0")
 def silver_youtube_stats():
-    df_raw = dlt.read(music_stats_tables["bronze"]).withColumn("_ingested_at", current_timestamp())
+    df_raw = dlt.read(music_stats_tables["bronze"]).withColumn("_ingested_at", F.current_timestamp())
 
     columns_to_cast = {
         "_ingested_at": F.col("_ingested_at").cast("timestamp"),
@@ -129,7 +65,7 @@ def silver_music_metadata_current():
     return (
         df_raw
         .withColumn("video_id", F.regexp_extract(F.col("url"), r"v=([a-zA-Z0-9_-]{11})", 1))
-        .withColumn("_ingested_at", current_timestamp())
+        .withColumn("_ingested_at", F.current_timestamp())
         .dropDuplicates(["video_id"])
     )
 

@@ -8,7 +8,6 @@ from pyspark.sql.functions import abs, col, lag, round, unix_timestamp, when
 _SECONDS_PER_HOUR: Final[float] = 3600.0
 _NEAR_ZERO_THRESHOLD: Final[float] = 1e-8
 
-
 def compute_per_hour_deltas(df: DataFrame) -> DataFrame:
     """Enrich a music-stats DataFrame with per-hour engagement delta columns.
 
