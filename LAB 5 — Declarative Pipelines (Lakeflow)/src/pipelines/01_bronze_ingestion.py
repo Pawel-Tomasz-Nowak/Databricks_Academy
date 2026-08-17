@@ -7,14 +7,19 @@ exec() and does not expose __file__ or repo-local import paths.
 
 
 import dlt
-import os
-import sys
+import os, sys
+
+from pyspark.sql import SparkSession
 
 
-bundle_root_dir = os.getcwd() # it'l return: "/Workspace/Users/pawel.nowak@twoja_firma.com/.bundle/music_project/dev/files"
-
-if bundle_root_dir not in sys.path:
-    sys.path.insert(0, bundle_root_dir)
+try:
+    spark = SparkSession.getActiveSession()
+    if spark:
+        bundle_root = spark.conf.get("bundle_root", None)
+        if bundle_root and bundle_root not in sys.path:
+            sys.path.append(bundle_root)
+except Exception:
+    pass
 
 
 from src.setup.music_pipeline_setup import (

@@ -10,15 +10,6 @@ a list of enriched video-statistics records ready for downstream persistence.
 Execution context: imported as a module by the snapshot runner or run
 directly as a Databricks job task. Requires an active SparkSession.
 """
-
-import os
-import sys
-
-bundle_root_dir = os.getcwd()
-if bundle_root_dir not in sys.path:
-    sys.path.insert(0, bundle_root_dir)
-
-
 from datetime import datetime
 
 import requests

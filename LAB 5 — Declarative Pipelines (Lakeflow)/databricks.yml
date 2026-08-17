@@ -1,55 +1,59 @@
 # ==============================================================================
-# DATABRICKS ASSET BUNDLES (DABs) CONFIGURATION - LAB 5
-# Music Popularity Spike Detection System (YouTube & DLT Pipeline)
+# DATABRICKS ASSET BUNDLES (DABs) - LAB 5
+# Music Popularity Spike Detection System
 # ==============================================================================
 bundle:
   name: music_popularity_spike_detection
 
 # ------------------------------------------------------------------------------
-# 1. ENVIRONMENT VARIABLES (UNITY CATALOG & COMPUTE)
+# 1. GLOBAL VARIABLES
 # ------------------------------------------------------------------------------
 variables:
   catalog_name:
-    description: "Target Unity Catalog name (e.g. dbr_dev / dbr_prod)"
+    description: "Target Unity Catalog name"
     default: "dbr_dev"
   schema_name:
-    description: "Target schema for pipeline tables"
+    description: "Target schema for tables"
     default: "music_analytics"
   landing_zone_name:
-    description: "Volume name for raw JSON payloads and metadata"
+    description: "Volume name for raw data landing zone"
     default: "landing_zone"
   existing_cluster_id:
-    description: "Cluster ID for existing student compute (Student_cluster / pnowak_cluster)"
+    description: "Cluster ID for existing compute (Student_cluster / pnowak_cluster)"
     default: "0702-132442-toro5spu"
+  secret_scope_val:
+    description: "Databricks secret scope"
+    default: "pawelnowak2004pri219_scope"
+  secret_key_val:
+    description: "Databricks secret key for the API"
+    default: "pawelnowak-youtube-api"
 
 # ------------------------------------------------------------------------------
-# 2. RESOURCES (DLT PIPELINE & MULTI-TASK WORKFLOW ORCHESTRATOR)
+# 2. RESOURCES (DLT PIPELINE & ORCHESTRATOR JOB)
 # ------------------------------------------------------------------------------
 resources:
 
   # ----------------------------------------------------------------------------
-  # A. Lakeflow Spark Declarative Pipeline (Delta Live Tables)
+  # A. Declarative Lakeflow Pipeline (DLT)
   # ----------------------------------------------------------------------------
   pipelines:
     music_dlt_pipeline:
-      name: "[${bundle.target}] Music Popularity Lakeflow Pipeline"
+      name: "Music Popularity Lakeflow Pipeline"
       catalog: ${var.catalog_name}
       target: ${var.schema_name}
 
-      # Cost optimization settings (FinOps)
-      continuous: false                 # Triggered mode: runs once and stops
-      photon: false                     # Disable Photon to avoid extra DBU charges
-      serverless: false                 # Use standard pool/cluster instead of expensive serverless
-      edition: "PRO"                    # Required for data quality expectations (@dlt.expect)
+      continuous: false
+      photon: false
+      serverless: false
+      edition: "PRO"
       channel: "CURRENT"
 
-      # Pass Unity Catalog paths to Spark session (spark.conf.get)
       configuration:
         music_project.catalog_name: ${var.catalog_name}
         music_project.schema_name: ${var.schema_name}
         music_project.volume_name: ${var.landing_zone_name}
+        bundle_root: ${workspace.file_path}/files
 
-      # Medallion layer entrypoints
       libraries:
         - file:
             path: src/pipelines/01_bronze_ingestion.py
@@ -58,7 +62,6 @@ resources:
         - file:
             path: src/pipelines/03_gold_aggregations.py
 
-      # Dedicated single-worker node for DLT
       clusters:
         - label: default
           node_type_id: "Standard_D4ds_v5"
@@ -69,20 +72,23 @@ resources:
             mode: ENHANCED
 
   # ----------------------------------------------------------------------------
-  # B. Workflow Orchestrator (Multi-Task Job DAG)
+  # B. Workflow Orchestrator Job
   # ----------------------------------------------------------------------------
   jobs:
     music_etl_orchestrator:
-      name: "[${bundle.target}] Full Music ETL Workflow"
+      name: "Full Music ETL Workflow"
 
       tasks:
-        # STEP 1: Environment Setup (Schemas, Volumes, Seed Data)
+        # Task 1: Environment Setup
         - task_key: setup_environment
           existing_cluster_id: ${var.existing_cluster_id}
           spark_python_task:
             python_file: src/setup/music_pipeline_setup.py
+            base_parameters:
+              - "${var.secret_scope_val}"
+              - "${var.secret_key_val}"
 
-        # STEP 2: Fetch raw JSON snapshots from YouTube API to Landing Zone Volume
+        # Task 2: API Producer
         - task_key: fetch_youtube_data
           depends_on:
             - task_key: setup_environment
@@ -90,7 +96,7 @@ resources:
           spark_python_task:
             python_file: src/producer/save_yt_stats_snapshot.py
 
-        # STEP 3: Execute Declarative DLT Pipeline (Bronze -> Silver -> Gold)
+        # Task 3: DLT Pipeline
         - task_key: run_dlt_pipeline
           depends_on:
             - task_key: fetch_youtube_data
@@ -98,22 +104,30 @@ resources:
             pipeline_id: ${resources.pipelines.music_dlt_pipeline.id}
 
 # ------------------------------------------------------------------------------
-# 3. DEPLOYMENT TARGETS (DEV / PROD)
+# 3. TARGETS (DEV & PROD PRESETS)
 # ------------------------------------------------------------------------------
 targets:
   dev:
     default: true
-    mode: development
+    workspace:
+      host: https://adb-7405604503619901.1.azuredatabricks.net
+    presets:
+      name_prefix: ''
+      pipelines_development: true
+      trigger_pause_status: "PAUSED"
     variables:
       catalog_name: "dbr_dev"
       schema_name: "music_analytics"
       landing_zone_name: "landing_zone"
-      existing_cluster_id: ${var.existing_cluster_id}
 
   prod:
-    mode: production
+    workspace:
+      host: https://adb-7405604503619901.1.azuredatabricks.net
+    presets:
+      name_prefix: ''
+      pipelines_development: false
+      trigger_pause_status: "UNPAUSED"
     variables:
       catalog_name: "dbr_prod"
       schema_name: "music_analytics"
       landing_zone_name: "landing_zone"
-      existing_cluster_id: ${var.existing_cluster_id} 
