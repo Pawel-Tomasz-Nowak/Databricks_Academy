@@ -4,11 +4,6 @@
 bundle:
   name: music_popularity_spike_detection
 
-artifacts:
-  etl_artifact:
-    type: whl
-    path: .
-
 # ------------------------------------------------------------------------------
 # 1. GLOBAL ENVIRONMENT VARIABLES
 # ------------------------------------------------------------------------------
