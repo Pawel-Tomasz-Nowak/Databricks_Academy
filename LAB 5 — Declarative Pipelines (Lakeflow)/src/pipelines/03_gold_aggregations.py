@@ -10,8 +10,8 @@ import sys
 
 from pyspark.sql import SparkSession
 
-# BULLETPROOF IMPORT MECHANISM
-# Robustly discover the repo root dynamically when executed in the Lakeflow environment
+# The SDP runtime evaluates pipeline files dynamically — __file__ is not set.
+# bundle.root is injected via spark.conf by the pipeline cluster configuration.
 spark = SparkSession.getActiveSession() or SparkSession.builder.getOrCreate()
 bundle_root = spark.conf.get("bundle.root", "")
 possible_roots = [
@@ -26,7 +26,6 @@ for path in possible_roots:
             sys.path.insert(0, path)
         break
 
-# Using the new Lakeflow Data Pipelines module
 from pyspark import pipelines as dp
 
 from src.setup.music_pipeline_setup import music_stats_tables
@@ -41,7 +40,6 @@ from src.transformations.aggregate_video_stats_by_minute import aggregate_video_
 )
 def gold_author_stats_by_minute():
     """Reads silver data and computes minute-level stats for authors."""
-    # Using spark.read.table() as recommended in Databricks LDP
     facts_df = spark.read.table(music_stats_tables["silver"])
     return aggregate_author_stats_by_minute(facts_df)
 
@@ -53,6 +51,5 @@ def gold_author_stats_by_minute():
 )
 def gold_video_stats_by_minute():
     """Reads silver data and computes minute-level stats for videos."""
-    # Using spark.read.table() as recommended in Databricks LDP
     facts_df = spark.read.table(music_stats_tables["silver"])
     return aggregate_video_stats_by_minute(facts_df)

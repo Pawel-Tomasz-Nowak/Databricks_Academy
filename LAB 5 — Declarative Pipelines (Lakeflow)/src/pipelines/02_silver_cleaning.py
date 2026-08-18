@@ -11,8 +11,8 @@ import sys
 
 from pyspark.sql import SparkSession
 
-# BULLETPROOF IMPORT MECHANISM
-# Robustly discover the repo root dynamically when executed in the Lakeflow environment
+# The SDP runtime evaluates pipeline files dynamically — __file__ is not set.
+# bundle.root is injected via spark.conf by the pipeline cluster configuration.
 spark = SparkSession.getActiveSession() or SparkSession.builder.getOrCreate()
 bundle_root = spark.conf.get("bundle.root", "")
 possible_roots = [
@@ -27,7 +27,6 @@ for path in possible_roots:
             sys.path.insert(0, path)
         break
 
-# Using the new Lakeflow Data Pipelines module as requested
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
@@ -88,14 +87,14 @@ def silver_music_metadata_current():
     )
 
 
-# Creating the streaming table programmatic reference
 dp.create_streaming_table(
     name=music_metadata_tables["silver_history"],
     comment="SCD Type 2 history table for music metadata. Tracks attribute changes for each video_id over time.",
     table_properties={"quality": "silver"},
 )
 
-# Apply changes logic to track historical metadata changes automatically using dp extensions
+# create_auto_cdc_from_snapshot_flow is the SDP 17.3+ API; fall back to the
+# older apply_changes_from_snapshot on runtimes that pre-date the rename.
 if hasattr(dp, "create_auto_cdc_from_snapshot_flow"):
     dp.create_auto_cdc_from_snapshot_flow(
         target=music_metadata_tables["silver_history"],

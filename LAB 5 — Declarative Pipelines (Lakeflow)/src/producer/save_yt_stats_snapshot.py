@@ -12,6 +12,22 @@ import os
 # Databricks asset bundles (DABs) deploy code into a /files/ directory structure.
 # We check multiple environmental markers to safely resolve the project root.
 def _init_bundle_path() -> None:
+    """Resolve the project root and prepend it to ``sys.path``.
+
+    Attempts several strategies in order to locate the root that contains the
+    ``src/`` package directory:
+
+    1. Current working directory (``os.getcwd()``).
+    2. Directory of the executing script (``__file__``) when available.
+    3. Directory of the first ``sys.argv`` entry.
+
+    When the resolved path is inside a Declarative Automation Bundle
+    deployment (a ``/files`` segment is present), the function anchors to
+    the ``/files`` root so that ``src.*`` package imports resolve correctly.
+    Falls back to a direct ``src/`` directory check for non-bundle contexts.
+
+    This function must be called before any ``src.*`` import statement.
+    """
     possible_roots = [
         os.getcwd(),
         os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else "",
@@ -50,7 +66,6 @@ def main() -> None:
     """Executes the API fetch and saves the result to the Databricks Volume."""
     print("[SNAPSHOT RUNNER] Fetching raw YouTube signal batches...")
     
-    # Call the imported function to fetch data from the YouTube API
     all_video_responses: list[dict] = read_data_from_api()
 
     if not all_video_responses:
@@ -66,7 +81,6 @@ def main() -> None:
     # Ensure the parent directory exists on the driver before writing
     os.makedirs(os.path.dirname(json_file_path), exist_ok=True)
 
-    # Write the payload to the Volume as a JSON file
     with open(json_file_path, "w", encoding="utf-8") as f:
         json.dump(all_video_responses, f, ensure_ascii=False, indent=4)
         

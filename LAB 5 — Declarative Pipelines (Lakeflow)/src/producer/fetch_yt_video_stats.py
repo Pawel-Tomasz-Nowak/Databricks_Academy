@@ -77,7 +77,6 @@ def read_data_from_api(batch_size: int = 50) -> list[dict]:
     in batches of up to ``batch_size`` items, and returns a list of enriched 
     statistics records.
     """
-    # Fetch secret locally at runtime
     yt_api_key = get_yt_api_key()
     
     video_ids_list = find_video_ids(music_metadata_file)
@@ -86,7 +85,6 @@ def read_data_from_api(batch_size: int = 50) -> list[dict]:
         print("[API CLIENT] No VALID videos found in metadata source.")
         return []
 
-    # Split the videos into predefined-sized batches
     id_batches: list[list[str]] = [
         video_ids_list[i : i + batch_size]
         for i in range(0, len(video_ids_list), batch_size)

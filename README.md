@@ -53,6 +53,29 @@ LAB 4 — Silver Layer, Data Quality & Schema Evolution/
 		type_widening_narrowing.png
 	setup_imports.py
 	README.md
+LAB 5 — Declarative Pipelines (Lakeflow)/
+	databricks.yml
+	README.md
+	src/
+		__init__.py
+		setup/
+			__init__.py
+			music_pipeline_setup.py
+		producer/
+			__init__.py
+			fetch_yt_video_stats.py
+			save_yt_stats_snapshot.py
+		pipelines/
+			01_bronze_ingestion.py
+			02_silver_cleaning.py
+			03_gold_aggregations.py
+		transformations/
+			__init__.py
+			delta_per_hour_metrics.py
+			aggregate_author_stats_by_minute.py
+			aggregate_video_stats_by_minute.py
+	tests/
+		test_tester.py
 ```
 
 ## What is in the repository
@@ -127,6 +150,36 @@ This lab demonstrates building a production-grade Silver Layer pipeline with dat
 * `README.md` — comprehensive documentation with usage examples and completion status
 
 **Status:** ✅ Completed with code review, documentation, and clean code improvements.
+
+### LAB 5 — Declarative Pipelines (Lakeflow) ✅
+
+This lab builds an end-to-end music analytics pipeline using Databricks Lakeflow Spark Declarative Pipelines and Declarative Automation Bundles (DABs). The pipeline ingests YouTube video engagement snapshots via the YouTube Data API v3, processes them through a bronze–silver–gold medallion architecture, and exposes minute-level aggregate tables for trend analysis.
+
+**Key Features:**
+* Full Declarative Automation Bundle setup with `databricks.yml`: two targets (`dev` and `prod`), six configurable variables, and a three-task Lakeflow Job connecting infrastructure setup, API fetch, and pipeline execution in sequence
+* Lakeflow Spark Declarative Pipeline using the `pyspark.pipelines` API (`@dp.table`, `@dp.expect_or_drop`, `@dp.expect_or_fail`, `dp.create_streaming_table`, `dp.apply_changes_from_snapshot`)
+* Auto Loader streaming ingestion from a Unity Catalog Volume landing zone with schema evolution in rescue mode
+* SCD Type 2 history tracking for music metadata via `apply_changes_from_snapshot`
+* Per-hour engagement velocity metrics computed using a lag window function partitioned by `video_id`
+* Bulletproof `sys.path` resolution for `src/` package imports inside the SDP runtime (where `__file__` is unavailable)
+* YouTube Data API v3 client with Databricks Secrets integration and configurable batch fetching
+* Shared configuration module (`music_pipeline_setup.py`) that works in both job and SDP contexts via `parse_known_args` + `spark.conf` fallback
+
+**Directory Structure:**
+* `databricks.yml` — bundle definition: pipeline, job, variables, `dev`/`prod` targets
+* `src/setup/` — Unity Catalog bootstrap and shared path/table-name configuration
+* `src/producer/` — YouTube Data API client and job entry point for snapshot writes
+* `src/pipelines/` — three SDP pipeline files (bronze, silver, gold)
+* `src/transformations/` — pure PySpark transformation functions (per-hour deltas, minute aggregations)
+* `tests/` — placeholder for pytest tests
+* `README.md` — full architecture diagram, per-file descriptions, prerequisites, and bundle commands
+
+**Tables Created (in `dbr_dev.music_analytics` / `dbr_prod.music_analytics`):**
+* `bronze_music_stats`, `bronze_music_metadata`
+* `silver_music_stats`, `silver_music_metadata`, `silver_music_metadata_history`
+* `gold_music_stats_by_author`, `gold_music_stats_by_video`
+
+**Status:** ✅ Completed with full documentation, inline docstrings, and clean code.
 
 ## Notes
 

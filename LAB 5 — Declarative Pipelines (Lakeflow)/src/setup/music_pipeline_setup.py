@@ -46,10 +46,10 @@ def get_pipeline_paths(catalog: str, schema: str, volume: str) -> dict:
 
 
 # ------------------------------------------------------------------------------
-# 3. SAFE ARGUMENT PARSING (For Global Variables & DLT Imports)
+# 3. SAFE ARGUMENT PARSING (For Global Variables & SDP Imports)
 # ------------------------------------------------------------------------------
-# If DLT imports this file without CLI args, it falls back to environment variables
-# or assigns None without raising an import error.
+# When the SDP runtime imports this module there are no CLI args — parse_known_args
+# silently ignores unknown args rather than raising SystemExit.
 _parser = argparse.ArgumentParser(description="Music Pipeline Configuration Parser")
 _parser.add_argument("--catalog", default=os.environ.get("DBRICKS_CATALOG"))
 _parser.add_argument("--schema", default=os.environ.get("DBRICKS_SCHEMA"))
@@ -103,7 +103,7 @@ def bootstrap_infrastructure() -> None:
             "Ensure databricks.yml passes CLI parameters to this task."
         )
 
-    # Local imports to prevent Spark session creation during module import (DLT)
+    # Deferred imports prevent SparkSession creation at module-import time (SDP context).
     from pyspark.sql import SparkSession
     from pyspark.dbutils import DBUtils
 
@@ -112,7 +112,6 @@ def bootstrap_infrastructure() -> None:
 
     print(f"[BOOTSTRAP] Setting up infrastructure for: {catalog_name}.{music_schema}.{volume_name}")
 
-    # Check and create Catalog
     catalogs = [row[0] for row in spark.sql(f"SHOW CATALOGS LIKE '{catalog_name}'").collect()]
     if not catalogs:
         try:
@@ -120,11 +119,9 @@ def bootstrap_infrastructure() -> None:
         except Exception as exc:
             raise RuntimeError(f"Permission denied when creating catalog '{catalog_name}'.") from exc
 
-    # Create Schema and Volume
     spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog_name}.{music_schema}")
     spark.sql(f"CREATE VOLUME IF NOT EXISTS {catalog_name}.{music_schema}.{volume_name}")
 
-    # Create volume directories
     paths = get_pipeline_paths(catalog_name, music_schema, volume_name)
     
     try:

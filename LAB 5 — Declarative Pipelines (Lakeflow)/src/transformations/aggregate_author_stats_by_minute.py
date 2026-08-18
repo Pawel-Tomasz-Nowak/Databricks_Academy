@@ -12,18 +12,10 @@ from pyspark.sql.functions import (
     col,
     countDistinct,
     date_trunc,
-    max,
-    mean,
-    min,
-    round,
-    std,
     sum,
 )
 
 _TIMESTAMP_GRANULARITY: Final[str] = "minute"
-_MEAN_ROUND_PRECISION: Final[int] = 1
-_CV_ROUND_PRECISION: Final[int] = 2
-_CV_SCALE: Final[int] = 100
 
 
 def aggregate_author_stats_by_minute(silver_df: DataFrame) -> DataFrame:
@@ -52,18 +44,5 @@ def aggregate_author_stats_by_minute(silver_df: DataFrame) -> DataFrame:
         countDistinct("video_id").alias("total_videos"),
         sum("view_count").alias("total_views"),
         sum("like_count").alias("total_likes"),
-        sum("comment_count").alias("total_comments")
-        # )
-        # max("view_count").alias("max_views"),
-        # max("like_count").alias("max_likes"),
-        # max("comment_count").alias("max_comments"),
-        # min("view_count").alias("min_views"),
-        # min("like_count").alias("min_likes"),
-        # min("comment_count").alias("min_comments"),
-        # round(mean("view_count"), _MEAN_ROUND_PRECISION).alias("mean_views"),
-        # round(mean("like_count"), _MEAN_ROUND_PRECISION).alias("mean_likes"),
-        # round(mean("comment_count"), _MEAN_ROUND_PRECISION).alias("mean_comments"),
-        # round(_CV_SCALE * std("view_count") / mean("view_count"), _CV_ROUND_PRECISION).alias("cv_views_pct"),
-        # round(_CV_SCALE * std("like_count") / mean("like_count"), _CV_ROUND_PRECISION).alias("cv_likes_pct"),
-        # round(_CV_SCALE * std("comment_count") / mean("comment_count"), _CV_ROUND_PRECISION).alias("cv_comments_pct"),
+        sum("comment_count").alias("total_comments"),
     ).select("author", "_ingested_at_minutes", "total_videos", "total_views", "total_likes", "total_comments")
