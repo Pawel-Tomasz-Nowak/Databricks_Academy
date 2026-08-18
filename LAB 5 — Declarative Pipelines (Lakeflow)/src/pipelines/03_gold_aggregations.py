@@ -3,55 +3,56 @@
 The value of the gold layer is not the raw row count; it is the business-ready
 view over time. Minute-level aggregation makes the trend readable without
 loading the full streaming history back into a reporting tool.
+Implemented using Databricks Lakeflow (pyspark.pipelines).
 """
-
-import dlt
-import os, sys
+import os
+import sys
 
 from pyspark.sql import SparkSession
 
+# BULLETPROOF IMPORT MECHANISM
+# Robustly discover the repo root dynamically when executed in the Lakeflow environment
+spark = SparkSession.getActiveSession() or SparkSession.builder.getOrCreate()
+bundle_root = spark.conf.get("bundle.root", "")
+possible_roots = [
+    bundle_root, 
+    os.getcwd(), 
+    os.path.abspath(os.path.join(os.getcwd(), "..", ".."))
+]
 
-try:
-    spark = SparkSession.getActiveSession()
-    if spark:
-        bundle_root = spark.conf.get("bundle_root", None)
-        if bundle_root and bundle_root not in sys.path:
-            sys.path.append(bundle_root)
-except Exception:
-    pass
+for path in possible_roots:
+    if path and os.path.isdir(os.path.join(path, "src")):
+        if path not in sys.path:
+            sys.path.insert(0, path)
+        break
+
+# Using the new Lakeflow Data Pipelines module
+from pyspark import pipelines as dp
+
+from src.setup.music_pipeline_setup import music_stats_tables
+from src.transformations.aggregate_author_stats_by_minute import aggregate_author_stats_by_minute
+from src.transformations.aggregate_video_stats_by_minute import aggregate_video_stats_by_minute
 
 
-
-bundle_root_dir = os.getcwd() 
-
-if bundle_root_dir not in sys.path:
-    sys.path.insert(0, bundle_root_dir)
-
-
-from src.setup.music_pipeline_setup import (
-    music_stats_tables,
-)
-from src.transformations import aggregate_author_stats_by_minute, aggregate_video_stats_by_minute
-
-
-
-@dlt.table(
+@dp.table(
     name=music_stats_tables["gold"] + "_by_author",
     comment="Business view summarising total engagement metrics for authors across minute-level snapshots.",
     table_properties={"quality": "gold"},
 )
-def gold_author_stast_by_minute():
-    facts_df = dlt.read(music_stats_tables["silver"])
+def gold_author_stats_by_minute():
+    """Reads silver data and computes minute-level stats for authors."""
+    # Using spark.read.table() as recommended in Databricks LDP
+    facts_df = spark.read.table(music_stats_tables["silver"])
     return aggregate_author_stats_by_minute(facts_df)
 
 
-@dlt.table(
+@dp.table(
     name=music_stats_tables["gold"] + "_by_video",
     comment="Business view showing the total views, likes, and comments for each video by minute.",
     table_properties={"quality": "gold"},
 )
-def gold_video_stast_by_minute():
-    facts_df = dlt.read(music_stats_tables["silver"])
+def gold_video_stats_by_minute():
+    """Reads silver data and computes minute-level stats for videos."""
+    # Using spark.read.table() as recommended in Databricks LDP
+    facts_df = spark.read.table(music_stats_tables["silver"])
     return aggregate_video_stats_by_minute(facts_df)
-
-

@@ -1,27 +1,33 @@
 """Bronze layer ingestion for music analytics pipeline.
 
 Reads YouTube video statistics and music metadata from cloud storage.
-The file is intentionally self-contained because DLT executes modules through
-exec() and does not expose __file__ or repo-local import paths.
+Includes a robust import mechanism to resolve the 'src' package
+within the Databricks Delta Live Tables (DLT) runtime environment.
 """
-
-
-import dlt
-import os, sys
-
+import sys
+import os
 from pyspark.sql import SparkSession
 
+# 1. BULLETPROOF DLT IMPORT MECHANISM
+# DLT evaluates code dynamically, so __file__ is not available.
+# We retrieve the bundle root defined in databricks.yml via spark.conf.
+spark = SparkSession.getActiveSession() or SparkSession.builder.getOrCreate()
+bundle_root = spark.conf.get("bundle.root", "")
 
-try:
-    spark = SparkSession.getActiveSession()
-    if spark:
-        bundle_root = spark.conf.get("bundle_root", None)
-        if bundle_root and bundle_root not in sys.path:
-            sys.path.append(bundle_root)
-except Exception:
-    pass
+# We check multiple possible root directories depending on the DBR execution context
+possible_roots = [
+    bundle_root, 
+    os.getcwd(), 
+    os.path.abspath(os.path.join(os.getcwd(), "..", ".."))
+]
 
+for path in possible_roots:
+    if path and os.path.isdir(os.path.join(path, "src")):
+        if path not in sys.path:
+            sys.path.insert(0, path)
+        break
 
+import pyspark.pipelines as dp
 from src.setup.music_pipeline_setup import (
     json_landing_path,
     music_metadata_file,
@@ -31,10 +37,9 @@ from src.setup.music_pipeline_setup import (
     metadata_music_schema
 )
 
-from databricks.sdk.runtime import spark
+# 2. LDP TABLE DEFINITIONS
 
-# Streaming source (autoloader for JSON files from YouTube)
-@dlt.table(
+@dp.table(
     name=music_stats_tables["bronze"],
     comment="Bronze streaming table reading music popularity snapshots from YouTube",
     table_properties={"quality": "bronze"},
@@ -52,9 +57,7 @@ def bronze_youtube_stats():
         .load(json_landing_path)
     )
 
-
-# Static batch source (CSV for music metadata)
-@dlt.table(
+@dp.table(
     name=music_metadata_tables["bronze"],
     comment="Bronze static table loading author and metadata dictionary from CSV",
     table_properties={"quality": "bronze"},
