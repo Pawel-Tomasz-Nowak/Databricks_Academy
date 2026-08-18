@@ -1,60 +1,41 @@
-# ==============================================================================
-# DATABRICKS ASSET BUNDLES (DABs) - LAB 5
-# Music Popularity Spike Detection System
-# ==============================================================================
 bundle:
   name: music_popularity_spike_detection
 
-# ------------------------------------------------------------------------------
-# 1. GLOBAL VARIABLES
-# ------------------------------------------------------------------------------
 variables:
   catalog_name:
-    description: "Target Unity Catalog name"
     default: "dbr_dev"
   schema_name:
-    description: "Target schema for tables"
     default: "music_analytics"
   landing_zone_name:
-    description: "Volume name for raw data landing zone"
     default: "landing_zone"
   existing_cluster_id:
-    description: "Cluster ID for existing compute (Student_cluster / pnowak_cluster)"
     default: "0702-132442-toro5spu"
   secret_scope_val:
-    description: "Databricks secret scope"
     default: "pawelnowak2004pri219_scope"
   secret_key_val:
-    description: "Databricks secret key for the API"
     default: "pawelnowak-youtube-api"
 
-# ------------------------------------------------------------------------------
-# 2. RESOURCES (DLT PIPELINE & ORCHESTRATOR JOB)
-# ------------------------------------------------------------------------------
 resources:
-
   # ----------------------------------------------------------------------------
-  # A. Declarative Lakeflow Pipeline (DLT)
+  # A. DLT WORLD (Configured via spark.conf)
   # ----------------------------------------------------------------------------
   pipelines:
     music_dlt_pipeline:
       name: "Music Popularity Lakeflow Pipeline"
-      catalog: ${var.catalog_name}
-      target: ${var.schema_name}
-
       continuous: false
-      photon: false
-      serverless: false
-      edition: "PRO"
+      target: ${var.schema_name}
+      catalog: ${var.catalog_name}
       channel: "CURRENT"
-
+      edition: "ADVANCED"
+      
+      # These values will be available in DLT via spark.conf.get()
       configuration:
-        music_project.catalog_name: ${var.catalog_name}
-        music_project.schema_name: ${var.schema_name}
-        music_project.volume_name: ${var.landing_zone_name}
-        secret_scope_val: ${var.secret_scope_val}
-        secret_key_val: ${var.secret_key_val}
-        bundle_root: ${workspace.file_path}/files
+        music.catalog: ${var.catalog_name}
+        music.schema: ${var.schema_name}
+        music.volume: ${var.landing_zone_name}
+        music.secret_scope: ${var.secret_scope_val}
+        music.secret_key: ${var.secret_key_val}
+        bundle.root: ${workspace.file_path}/files
 
       libraries:
         - file:
@@ -68,13 +49,9 @@ resources:
         - label: default
           node_type_id: "Standard_D4ds_v5"
           num_workers: 1
-          autoscale:
-            min_workers: 1
-            max_workers: 1
-            mode: ENHANCED
 
   # ----------------------------------------------------------------------------
-  # B. Workflow Orchestrator Job
+  # B. JOBS WORLD (Configured via CLI arguments)
   # ----------------------------------------------------------------------------
   jobs:
     music_etl_orchestrator:
@@ -86,22 +63,39 @@ resources:
           existing_cluster_id: ${var.existing_cluster_id}
           spark_python_task:
             python_file: src/setup/music_pipeline_setup.py
-            base_parameters:
+            parameters:
+              - "--catalog"
               - "${var.catalog_name}"
+              - "--schema"
               - "${var.schema_name}"
+              - "--volume"
               - "${var.landing_zone_name}"
+              - "--secret_scope"
               - "${var.secret_scope_val}"
+              - "--secret_key"
               - "${var.secret_key_val}"
 
-        # Task 2: API Producer
+        # Task 2: API Producer (RECEIVES THE SAME PARAMETERS)
         - task_key: fetch_youtube_data
           depends_on:
             - task_key: setup_environment
           existing_cluster_id: ${var.existing_cluster_id}
           spark_python_task:
             python_file: src/producer/save_yt_stats_snapshot.py
+            # Passing the same parameters to ensure setup import works without errors
+            parameters:
+              - "--catalog"
+              - "${var.catalog_name}"
+              - "--schema"
+              - "${var.schema_name}"
+              - "--volume"
+              - "${var.landing_zone_name}"
+              - "--secret_scope"
+              - "${var.secret_scope_val}"
+              - "--secret_key"
+              - "${var.secret_key_val}"
 
-        # Task 3: DLT Pipeline
+        # TASK 3: Run DLT Pipeline
         - task_key: run_dlt_pipeline
           depends_on:
             - task_key: fetch_youtube_data
