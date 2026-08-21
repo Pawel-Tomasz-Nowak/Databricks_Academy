@@ -1,0 +1,494 @@
+{
+  "datasets": [
+    {
+      "name": "music_artist_explorer",
+      "displayName": "Music Artist Explorer",
+      "queryLines": [
+        "WITH metadata AS (\n",
+        "  SELECT DISTINCT\n",
+        "    video_id,\n",
+        "    COALESCE(author, 'Unknown Artist') AS author,\n",
+        "    COALESCE(album, 'Unknown Album') AS album,\n",
+        "    COALESCE(title, 'Unknown Track') AS title,\n",
+        "    album_release_date\n",
+        "  FROM\n",
+        "    IDENTIFIER(concat(:catalog_name, '.', :schema_name, '.dim_music_metadata'))\n",
+        "),\n",
+        "facts AS (\n",
+        "  SELECT\n",
+        "    video_id,\n",
+        "    ingested_at_minutes,\n",
+        "    total_views,\n",
+        "    total_likes,\n",
+        "    total_comments\n",
+        "  FROM\n",
+        "    IDENTIFIER(concat(:catalog_name, '.', :schema_name, '.fact_music_stats'))\n",
+        ")\n",
+        "SELECT\n",
+        "  m.author,\n",
+        "  m.album,\n",
+        "  m.title,\n",
+        "  m.album_release_date,\n",
+        "  f.video_id,\n",
+        "  f.ingested_at_minutes,\n",
+        "  f.total_views,\n",
+        "  f.total_likes,\n",
+        "  f.total_comments\n",
+        "FROM\n",
+        "  facts f\n",
+        "    INNER JOIN metadata m\n",
+        "      ON f.video_id = m.video_id\n",
+        "WHERE\n",
+        "  m.author IS NOT NULL\n",
+        "  AND m.album IS NOT NULL"
+      ],
+      "parameters": [
+        {
+          "displayName": "Catalog",
+          "keyword": "catalog_name",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "dbr_dev"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Schema",
+          "keyword": "schema_name",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "music_analytics"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "2edb8b7a",
+      "displayName": "Artist Explorer",
+      "layout": [
+        {
+          "widget": {
+            "name": "artist_filter",
+            "queries": [
+              {
+                "name": "dashboards/01f19d915a5f1c91a8a94a9ac1fd4210/datasets/01f19d9256101058bffc60f65236b7e7_author",
+                "query": {
+                  "datasetName": "music_artist_explorer",
+                  "fields": [
+                    {
+                      "name": "author",
+                      "expression": "`author`"
+                    },
+                    {
+                      "name": "author_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Artist",
+                "showTitle": true
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "author",
+                    "queryName": "dashboards/01f19d915a5f1c91a8a94a9ac1fd4210/datasets/01f19d9256101058bffc60f65236b7e7_author"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "time_filter",
+            "queries": [
+              {
+                "name": "dashboards/01f19d915a5f1c91a8a94a9ac1fd4210/datasets/01f19d9256101058bffc60f65236b7e7_ingested_at_minutes",
+                "query": {
+                  "datasetName": "music_artist_explorer",
+                  "fields": [
+                    {
+                      "name": "ingested_at_minutes",
+                      "expression": "`ingested_at_minutes`"
+                    },
+                    {
+                      "name": "ingested_at_minutes_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Snapshot Time",
+                "showTitle": true
+              },
+              "widgetType": "filter-date-range-picker",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "ingested_at_minutes",
+                    "queryName": "dashboards/01f19d915a5f1c91a8a94a9ac1fd4210/datasets/01f19d9256101058bffc60f65236b7e7_ingested_at_minutes"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 4,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "album_count",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "music_artist_explorer",
+                  "fields": [
+                    {
+                      "name": "countdistinct(album)",
+                      "expression": "COUNT(DISTINCT `album`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Albums in View",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "countdistinct(album)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 0,
+            "width": 4,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "album_views_pie",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "music_artist_explorer",
+                  "fields": [
+                    {
+                      "name": "sum(total_views)",
+                      "expression": "SUM(`total_views`)"
+                    },
+                    {
+                      "name": "album",
+                      "expression": "`album`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Album View Share",
+                "showTitle": true
+              },
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "sum(total_views)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "total_views"
+                },
+                "color": {
+                  "fieldName": "album",
+                  "displayName": "album",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "views_over_time",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "music_artist_explorer",
+                  "fields": [
+                    {
+                      "name": "ingested_at_minutes",
+                      "expression": "`ingested_at_minutes`"
+                    },
+                    {
+                      "name": "sum(total_views)",
+                      "expression": "SUM(`total_views`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Artist Views Over Time",
+                "showTitle": true
+              },
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "ingested_at_minutes",
+                  "displayName": "ingested_at_minutes",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(total_views)",
+                  "displayName": "total_views",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 2,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "album_likes_bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "music_artist_explorer",
+                  "fields": [
+                    {
+                      "name": "album",
+                      "expression": "`album`"
+                    },
+                    {
+                      "name": "sum(total_likes)",
+                      "expression": "SUM(`total_likes`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Albums by Total Likes",
+                "showTitle": true
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "album",
+                  "displayName": "album",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(total_likes)",
+                  "displayName": "total_likes",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "album",
+                  "displayName": "album",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "album_comment_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "music_artist_explorer",
+                  "fields": [
+                    {
+                      "name": "author",
+                      "expression": "`author`"
+                    },
+                    {
+                      "name": "album",
+                      "expression": "`album`"
+                    },
+                    {
+                      "name": "album_release_date",
+                      "expression": "`album_release_date`"
+                    },
+                    {
+                      "name": "ingested_at_minutes",
+                      "expression": "`ingested_at_minutes`"
+                    },
+                    {
+                      "name": "sum(total_views)",
+                      "expression": "SUM(`total_views`)"
+                    },
+                    {
+                      "name": "sum(total_likes)",
+                      "expression": "SUM(`total_likes`)"
+                    },
+                    {
+                      "name": "sum(total_comments)",
+                      "expression": "SUM(`total_comments`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Album Snapshot Table",
+                "showTitle": true
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "author"
+                  },
+                  {
+                    "fieldName": "album"
+                  },
+                  {
+                    "fieldName": "album_release_date"
+                  },
+                  {
+                    "fieldName": "ingested_at_minutes"
+                  },
+                  {
+                    "fieldName": "sum(total_views)"
+                  },
+                  {
+                    "fieldName": "sum(total_likes)"
+                  },
+                  {
+                    "fieldName": "sum(total_comments)"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 8,
+            "width": 6,
+            "height": 6
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}
