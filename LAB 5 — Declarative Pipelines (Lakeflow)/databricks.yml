@@ -21,14 +21,16 @@ resources:
   # ----------------------------------------------------------------------------
   pipelines:
     music_dlt_pipeline:
-      name: "Music Popularity Lakeflow Pipeline"
+      name: "[${bundle.target}] Music Popularity Lakeflow Pipeline"
       continuous: false
       target: ${var.schema_name}
       catalog: ${var.catalog_name}
       channel: "CURRENT"
       edition: "ADVANCED"
-      
-      # These values will be available in DLT via spark.conf.get()
+      photon: false
+      serverless: false
+
+      # Values available in DLT via spark.conf.get()
       configuration:
         music.catalog: ${var.catalog_name}
         music.schema: ${var.schema_name}
@@ -49,13 +51,18 @@ resources:
         - label: default
           node_type_id: "Standard_D4ds_v5"
           num_workers: 1
+          custom_tags:
+            ResourceClass: "SingleNode"
+          spark_conf:
+            spark.master: "local[*]"
+            spark.databricks.cluster.profile: "singleNode"
 
   # ----------------------------------------------------------------------------
   # B. JOBS WORLD (Configured via CLI arguments)
   # ----------------------------------------------------------------------------
   jobs:
     music_etl_orchestrator:
-      name: "Full Music ETL Workflow"
+      name: "[${bundle.target}] Full Music ETL Workflow"
 
       tasks:
         # Task 1: Environment Setup
@@ -75,14 +82,13 @@ resources:
               - "--secret_key"
               - "${var.secret_key_val}"
 
-        # Task 2: API Producer (RECEIVES THE SAME PARAMETERS)
+        # Task 2: API Producer
         - task_key: fetch_youtube_data
           depends_on:
             - task_key: setup_environment
           existing_cluster_id: ${var.existing_cluster_id}
           spark_python_task:
             python_file: src/producer/save_yt_stats_snapshot.py
-            # Passing the same parameters to ensure setup import works without errors
             parameters:
               - "--catalog"
               - "${var.catalog_name}"
@@ -95,7 +101,7 @@ resources:
               - "--secret_key"
               - "${var.secret_key_val}"
 
-        # TASK 3: Run DLT Pipeline
+        # Task 3: Run DLT Pipeline
         - task_key: run_dlt_pipeline
           depends_on:
             - task_key: fetch_youtube_data
@@ -118,6 +124,7 @@ targets:
       catalog_name: "dbr_dev"
       schema_name: "music_analytics"
       landing_zone_name: "landing_zone"
+      existing_cluster_id: "0702-132442-toro5spu"
 
   prod:
     workspace:
