@@ -25,15 +25,19 @@ from src.setup.music_pipeline_setup import (
     music_metadata_tables
 )
 
-@dp.table(
+@dp.materialized_view(
     name=music_metadata_tables["gold"],
-    comment="Gold table for music metadata",
-    table_properties={"quality": "gold", "table_type":"dimension"},
-    cluster_by=["author","album"]
+    comment="Gold dimension table for music metadata — current state per video, url excluded.",
+    table_properties={"quality": "gold", "table_type": "dimension"},
+    cluster_by=["author", "album"],
 )
 def golden_music_metadata():
-    silver_tbl = spark.read.table(music_metadata_tables["silver"])
+    """Reads the silver metadata snapshot (materialized view) and drops the url column.
 
+    silver_music_metadata is a materialized view representing the current state
+    per video_id. spark.read.table is required; readStream cannot consume a MV.
+    """
+    silver_tbl = spark.read.table(music_metadata_tables["silver"])
     return silver_tbl.drop(F.col("url"))
 
 

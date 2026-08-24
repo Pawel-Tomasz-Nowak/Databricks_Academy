@@ -9,7 +9,7 @@ Implemented using Databricks Lakeflow (pyspark.pipelines).
 import os
 import sys
 
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, Window
 
 # The SDP runtime evaluates pipeline files dynamically — __file__ is not set.
 # bundle.root is injected via spark.conf by the pipeline cluster configuration.
@@ -37,7 +37,7 @@ from src.setup.music_pipeline_setup import (
 )
 
 
-@dp.table(
+@dp.materialized_view(
     name=music_stats_tables["silver"],
     comment="Cleaned YouTube stats. Invalid records are dropped or cause pipeline failure.",
     table_properties={"quality": "silver"},
@@ -50,7 +50,7 @@ def silver_youtube_stats():
     """Reads raw bronze data, casts schema types, and computes per-hour metrics.
     Using spark.read.table() as recommended in Databricks LDP.
     """
-    df_raw = spark.readStream.table(music_stats_tables["bronze"])
+    df_raw = spark.read.table(music_stats_tables["bronze"])
 
     columns_to_cast = {
         "_ingested_at": F.col("_ingested_at").cast("timestamp"),
@@ -67,23 +67,37 @@ def silver_youtube_stats():
     return compute_per_hour_deltas(df_clean)
 
 
-@dp.table(
+@dp.materialized_view(
     name=music_metadata_tables["silver"],
-    comment="Current music metadata snapshot. Recomputed from bronze CSV metadata on each pipeline update.",
+    comment="Current music metadata snapshot. Keeps the latest metadata row per video_id from all landed CSV files.",
     table_properties={"quality": "silver"},
 )
 @dp.expect_or_drop("valid_metadata_id", "video_id IS NOT NULL AND video_id <> ''")
 def silver_music_metadata_current():
-    """Extracts video IDs from URLs and drops duplicates."""
-    df_raw = spark.readStream.table(music_metadata_tables["bronze"])
+    """Build the latest metadata snapshot per video from the bronze append-only feed."""
+    df_raw = spark.read.table(music_metadata_tables["bronze"])
+    latest_row_window = Window.partitionBy("video_id").orderBy(
+        F.col("_ingested_at").desc(),
+        F.col("_source_file_path").desc(),
+    )
 
     return (
         df_raw
-        .withColumns({
-            "video_id": F.regexp_extract(F.col("url"), r"v=([a-zA-Z0-9_-]{11})", 1),
-            "_ingested_at": F.current_timestamp(),
-        })
-        .dropDuplicates(["video_id"])
+        .withColumn("video_id", F.regexp_extract(F.col("url"), r"v=([a-zA-Z0-9_-]{11})", 1))
+        .filter(F.col("video_id") != "")
+        .withColumn("_row_num", F.row_number().over(latest_row_window))
+        .filter(F.col("_row_num") == 1)
+        .drop("_row_num")
+    )
+
+
+@dp.temporary_view(name="silver_music_metadata_cdc_source")
+def silver_music_metadata_cdc_source():
+    """Expose metadata changes as an ordered append-only source for SCD Type 2 processing."""
+    return (
+        spark.readStream.table(music_metadata_tables["bronze"])
+        .withColumn("video_id", F.regexp_extract(F.col("url"), r"v=([a-zA-Z0-9_-]{11})", 1))
+        .filter(F.col("video_id") != "")
     )
 
 
@@ -93,21 +107,17 @@ dp.create_streaming_table(
     table_properties={"quality": "silver"},
 )
 
-# create_auto_cdc_from_snapshot_flow is the SDP 17.3+ API; fall back to the
-# older apply_changes_from_snapshot on runtimes that pre-date the rename.
-if hasattr(dp, "create_auto_cdc_from_snapshot_flow"):
-    dp.create_auto_cdc_from_snapshot_flow(
-        target=music_metadata_tables["silver_history"],
-        source=music_metadata_tables["silver"],
-        keys=["video_id"],
-        stored_as_scd_type=2,
-        track_history_column_list=["url", "author", "title", "album", "album_release_date"],
-    )
-else:
-    dp.apply_changes_from_snapshot(
-        target=music_metadata_tables["silver_history"],
-        source=music_metadata_tables["silver"],
-        keys=["video_id"],
-        stored_as_scd_type=2,
-        track_history_column_list=["url", "author", "title", "album", "album_release_date"],
-    )
+dp.create_auto_cdc_flow(
+    target=music_metadata_tables["silver_history"],
+    source="silver_music_metadata_cdc_source",
+    keys=["video_id"],
+    # Use a deterministic tie-breaker for rows that share the same _ingested_at.
+    # Example: two CSV files can land in the same ingestion batch for one video_id:
+    # file A changes author, file B changes album. Ordering only by _ingested_at
+    # makes those changes ambiguous, so one of them can be skipped as "not newer".
+    # Adding _source_file_path gives AUTO CDC a stable secondary ordering key.
+    sequence_by=F.struct(F.col("_ingested_at"), F.col("_source_file_path")),
+    stored_as_scd_type=2,
+    track_history_column_list=["url", "author", "title", "album", "album_release_date"],
+    name="silver_music_metadata_history_flow",
+)

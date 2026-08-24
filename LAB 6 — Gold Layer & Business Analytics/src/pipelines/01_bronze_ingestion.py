@@ -6,7 +6,7 @@ Declarative Pipeline (SDP) runtime, where __file__ is unavailable.
 """
 import sys
 import os
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, functions as F
 
 # The SDP runtime evaluates pipeline files dynamically — __file__ is not set.
 # bundle.root is injected via spark.conf by the pipeline cluster configuration.
@@ -63,6 +63,11 @@ def bronze_youtube_stats() -> None:
         .option("multiline", "true")
         .option("cloudFiles.maxFilesPerTrigger", "1000")
         .load(json_landing_path)
+        .withColumns({
+            "_source_file_path": F.col("_metadata.file_path"),
+            "_ingested_at": F.col("_metadata.file_modification_time").cast("timestamp"),
+        })
+        .drop("_metadata")
     )
 
 @dp.table(
@@ -95,4 +100,9 @@ def bronze_music_metadata() -> None:
         .option("dateFormat", "dd.MM.yyyy")
         .schema(metadata_music_schema)
         .load(music_metadata_file)
+        .withColumns({
+            "_source_file_path": F.col("_metadata.file_path"),
+            "_ingested_at": F.col("_metadata.file_modification_time").cast("timestamp"),
+        })
+        .drop("_metadata")
     )

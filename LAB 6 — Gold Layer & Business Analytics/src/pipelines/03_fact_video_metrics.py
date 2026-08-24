@@ -31,15 +31,19 @@ from pyspark import pipelines as dp
 from src.setup.music_pipeline_setup import music_stats_tables
 from src.transformations.aggregate_video_stats import aggregate_video_stats
 
-@dp.table(
+@dp.materialized_view(
     name=music_stats_tables["fact"],
-    comment=f"Fact table showing the total views, likes, and comments for each video.",
+    comment="Fact table showing the total views, likes, and comments for each video.",
     table_properties={
         "table_type": "fact",
-        "grain":"video"
-    }
+        "grain": "video",
+    },
 )
 def fact_video_stats():
-    f"""Reads silver data and aggreagate them to fact-level"""
-    facts_df = spark.readStream.table(music_stats_tables["silver"])
+    """Reads silver materialized view as a static snapshot and aggregates to fact-level.
+
+    silver_music_stats is a materialized view (full snapshot with LAG deltas),
+    so it cannot be read with readStream — spark.read.table is required.
+    """
+    facts_df = spark.read.table(music_stats_tables["silver"])
     return aggregate_video_stats(facts_df)

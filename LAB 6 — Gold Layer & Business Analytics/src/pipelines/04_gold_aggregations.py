@@ -34,33 +34,35 @@ from src.setup.music_pipeline_setup import music_stats_tables, music_metadata_ta
 from src.transformations.aggregate_stats import aggregate_stats
 # docs to be updated - we assume default level od granularity imposed by datetime.now()
 
-@dp.table(
-    name = music_stats_tables["gold_author"],
+@dp.materialized_view(
+    name=music_stats_tables["gold_author"],
     comment="Business view summarising total engagement metrics for authors across minute-level snapshots.",
-    table_properties={"quality": "gold", "table_type":"fact"}
+    table_properties={"quality": "gold", "table_type": "fact"},
 )
 def gold_author_stats_by_minute():
-    """Reads silver data and computes minute-level stats for authors."""
+    """Joins fact and dim materialized views and aggregates by author.
+
+    Both source tables are materialized views — mixing readStream with
+    spark.read in a single function is not allowed in SDP, so both reads
+    use spark.read.table.
+    """
     facts_df = spark.read.table(music_stats_tables["fact"])
     dim_df = spark.read.table(music_metadata_tables["gold"]).select("video_id", "author")
 
-
-    ext_facts_df = facts_df.join(dim_df, on ="video_id" ,how = "left")
-
+    ext_facts_df = facts_df.join(dim_df, on="video_id", how="left")
     return aggregate_stats(ext_facts_df)
 
 
-@dp.table(
-    name = music_stats_tables["gold_album"],
-    comment=f"Business view summarising total engagement metrics for albums across  snapshots.",
-    table_properties={"quality": "gold", "table_type":"fact"}
+@dp.materialized_view(
+    name=music_stats_tables["gold_album"],
+    comment="Business view summarising total engagement metrics for albums across snapshots.",
+    table_properties={"quality": "gold", "table_type": "fact"},
 )
 def gold_album_stats_by_minute():
-    """Reads silver data and computes minute-level stats for authors."""
+    """Joins fact and dim materialized views and aggregates by album."""
     facts_df = spark.read.table(music_stats_tables["fact"])
     dim_df = spark.read.table(music_metadata_tables["gold"]).select("video_id", "album")
 
+    ext_facts_df = facts_df.join(dim_df, on="video_id", how="left")
 
-    ext_facts_df = facts_df.join(dim_df, on ="video_id" ,how = "left")
-
-    return aggregate_stats(ext_facts_df, by = "album")
+    return aggregate_stats(ext_facts_df, by="album")
