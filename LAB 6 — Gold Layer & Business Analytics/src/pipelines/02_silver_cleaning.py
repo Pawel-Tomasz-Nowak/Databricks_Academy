@@ -50,7 +50,7 @@ def silver_youtube_stats():
     """Reads raw bronze data, casts schema types, and computes per-hour metrics.
     Using spark.read.table() as recommended in Databricks LDP.
     """
-    df_raw = spark.read.table(music_stats_tables["bronze"])
+    df_raw = spark.readStream.table(music_stats_tables["bronze"])
 
     columns_to_cast = {
         "_ingested_at": F.col("_ingested_at").cast("timestamp"),
@@ -75,7 +75,7 @@ def silver_youtube_stats():
 @dp.expect_or_drop("valid_metadata_id", "video_id IS NOT NULL AND video_id <> ''")
 def silver_music_metadata_current():
     """Extracts video IDs from URLs and drops duplicates."""
-    df_raw = spark.read.table(music_metadata_tables["bronze"])
+    df_raw = spark.readStream.table(music_metadata_tables["bronze"])
 
     return (
         df_raw

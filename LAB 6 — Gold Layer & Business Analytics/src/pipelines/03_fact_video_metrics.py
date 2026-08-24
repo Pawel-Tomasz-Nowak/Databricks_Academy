@@ -28,18 +28,18 @@ for path in possible_roots:
 
 from pyspark import pipelines as dp
 
-from src.setup.music_pipeline_setup import music_stats_tables, _TIMESTAMP_GRANULARITY
+from src.setup.music_pipeline_setup import music_stats_tables
 from src.transformations.aggregate_video_stats import aggregate_video_stats
 
 @dp.table(
     name=music_stats_tables["fact"],
-    comment=f"Fact table showing the total views, likes, and comments for each video by {_TIMESTAMP_GRANULARITY}.",
+    comment=f"Fact table showing the total views, likes, and comments for each video.",
     table_properties={
         "table_type": "fact",
-        "grain": _TIMESTAMP_GRANULARITY
+        "grain":"video"
     }
 )
-def gold_video_stats_by_minute():
-    f"""Reads silver data and computes f{_TIMESTAMP_GRANULARITY}-level stats for videos."""
-    facts_df = spark.read.table(music_stats_tables["silver"])
-    return aggregate_video_stats(facts_df, _TIMESTAMP_GRANULARITY)
+def fact_video_stats():
+    f"""Reads silver data and aggreagate them to fact-level"""
+    facts_df = spark.readStream.table(music_stats_tables["silver"])
+    return aggregate_video_stats(facts_df)

@@ -57,7 +57,7 @@ def bronze_youtube_stats() -> None:
         spark.readStream
         .format("cloudFiles")
         .option("cloudFiles.format", "json")
-        .option("cloudFiles.schemaLocation", bronze_schema_path)
+        .option("cloudFiles.schemaLocation", bronze_schema_path+"_snapshots")
         .option("cloudFiles.inferColumnTypes", "true")
         .option("cloudFiles.schemaEvolutionMode", "rescue")
         .option("multiline", "true")
@@ -67,23 +67,29 @@ def bronze_youtube_stats() -> None:
 
 @dp.table(
     name=music_metadata_tables["bronze"],
-    comment="Bronze static table loading author and metadata dictionary from CSV",
+    comment="Bronze streaming table loading author and metadata dictionary from CSV",
     table_properties={"quality": "bronze"},
 )
 def bronze_music_metadata() -> None:
-    """Load the static music metadata dictionary from the CSV file into the bronze table.
+    """Stream the music metadata dictionary from CSV files into the bronze table.
 
-    Reads ``music_discography.csv`` from the landing volume as a batch read using
-    the predefined ``metadata_music_schema``. The file uses a semicolon delimiter
-    and includes a header row. This table is refreshed on every pipeline update.
+    Reads ``music_discography.csv`` from the landing volume as a streaming read using
+    the predefined ``metadata_music_schema``. The file uses a semicolon delimiter,
+    includes a header row, and applies schema evolution in rescue mode so unexpected
+    fields are preserved in a ``_rescued_data`` column rather than causing failures.
+    Maximum files per batch is 50.
 
     Returns:
-        A batch DataFrame of music metadata records (url, title, album,
+        A streaming DataFrame of music metadata records (url, title, album,
         album_release_date, author).
     """
     return (
-        spark.read
-        .format("csv")
+        spark.readStream
+        .format("cloudFiles")
+        .option("cloudFiles.format", "csv")
+        .option("cloudFiles.schemaLocation", bronze_schema_path+"_metadata")
+        .option("cloudFiles.maxFilesPerTrigger", "50")
+        .option("cloudFiles.schemaEvolutionMode", "rescue")
         .option("delimiter", ";")
         .option("header", "true")
         .option("dateFormat", "dd.MM.yyyy")

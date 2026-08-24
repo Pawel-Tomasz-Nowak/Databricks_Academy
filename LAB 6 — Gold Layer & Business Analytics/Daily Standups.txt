@@ -13,3 +13,20 @@ Lab 6 continues and review Lukasz's feedback on my questions from the meeting re
 
 Blockers:
 Low concetration, probably tiredness still continues but I found much better timeline for doing databricks tasks (i.e. after 15 p.m. instead of morning hours)
+
+
+21.08.2026:
+Done:
+fixed crucial bug - the bug used to result in high data volume loss
+Created BI/AI dashboard,
+Recoverred from tiredness - up and running to conquer other labs
+Reviewed yesterday's Lukasz feedback
+
+
+Plans for the weekend:
+- Finish up Lab 6th (won't be heavily influenced by blockers)
+
+Weekend's blockers:
+- Going to Wroclaw to see 1670 Paranoama
+- Going to sleep in the forest (bushcraft)
+

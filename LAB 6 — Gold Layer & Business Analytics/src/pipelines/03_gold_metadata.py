@@ -28,7 +28,7 @@ from src.setup.music_pipeline_setup import (
 @dp.table(
     name=music_metadata_tables["gold"],
     comment="Gold table for music metadata",
-    table_properties={"quality": "gold"},
+    table_properties={"quality": "gold", "table_type":"dimension"},
     cluster_by=["author","album"]
 )
 def golden_music_metadata():
