@@ -20,8 +20,6 @@ metadata_music_schema = StructType([
 
 yt_video_url = "https://www.googleapis.com/youtube/v3/videos"
 
-_TIMESTAMP_GRANULARITY: Final[str]=  "minute" # This constant might go to Databricks automation buddle I guess (in the future :d). Let's leave it here for now
-
 # ------------------------------------------------------------------------------
 # 2. PATH RESOLVER
 # ------------------------------------------------------------------------------
@@ -32,7 +30,7 @@ def get_pipeline_paths(catalog: str, schema: str, volume: str) -> dict:
         "volume_path": f"{catalog}.{schema}.{volume}",
         "json_landing_path": f"{base_volume}/yt_snapshots",
         "music_metadata_dir": f"{base_volume}/music_metadata",
-        "music_metadata_file": f"{base_volume}/music_metadata/music_discography.csv",
+        "music_metadata_file": f"{base_volume}/music_metadata/music_discography*.csv",
         "bronze_schema_path": f"{base_volume}/music_schema",
         "music_metadata_tables": {
             "bronze": f"{catalog}.{schema}.bronze_music_metadata",

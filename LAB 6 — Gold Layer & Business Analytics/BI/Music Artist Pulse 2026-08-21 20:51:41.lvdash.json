@@ -17,7 +17,7 @@
         "facts AS (\n",
         "  SELECT\n",
         "    video_id,\n",
-        "    ingested_at_minutes,\n",
+        "    _ingested_at,\n",
         "    total_views,\n",
         "    total_likes,\n",
         "    total_comments\n",
@@ -30,7 +30,7 @@
         "  m.title,\n",
         "  m.album_release_date,\n",
         "  f.video_id,\n",
-        "  f.ingested_at_minutes,\n",
+        "  f._ingested_at,\n",
         "  f.total_views,\n",
         "  f.total_likes,\n",
         "  f.total_comments\n",
@@ -132,16 +132,16 @@
             "name": "time_filter",
             "queries": [
               {
-                "name": "dashboards/01f19d915a5f1c91a8a94a9ac1fd4210/datasets/01f19d9256101058bffc60f65236b7e7_ingested_at_minutes",
+                "name": "dashboards/01f19e3ceaa8101fa3d21ce73fe17fb7/datasets/01f19e3ceaa814e0a3176f0447a83081__ingested_at",
                 "query": {
                   "datasetName": "music_artist_explorer",
                   "fields": [
                     {
-                      "name": "ingested_at_minutes",
-                      "expression": "`ingested_at_minutes`"
+                      "name": "_ingested_at",
+                      "expression": "`_ingested_at`"
                     },
                     {
-                      "name": "ingested_at_minutes_associativity",
+                      "name": "_ingested_at_associativity",
                       "expression": "COUNT_IF(`associative_filter_predicate_group`)"
                     }
                   ],
@@ -159,8 +159,8 @@
               "encodings": {
                 "fields": [
                   {
-                    "fieldName": "ingested_at_minutes",
-                    "queryName": "dashboards/01f19d915a5f1c91a8a94a9ac1fd4210/datasets/01f19d9256101058bffc60f65236b7e7_ingested_at_minutes"
+                    "fieldName": "_ingested_at",
+                    "queryName": "dashboards/01f19e3ceaa8101fa3d21ce73fe17fb7/datasets/01f19e3ceaa814e0a3176f0447a83081__ingested_at"
                   }
                 ]
               }
@@ -283,8 +283,8 @@
                   "datasetName": "music_artist_explorer",
                   "fields": [
                     {
-                      "name": "ingested_at_minutes",
-                      "expression": "`ingested_at_minutes`"
+                      "name": "_ingested_at",
+                      "expression": "`_ingested_at`"
                     },
                     {
                       "name": "sum(total_views)",
@@ -304,8 +304,8 @@
               "widgetType": "line",
               "encodings": {
                 "x": {
-                  "fieldName": "ingested_at_minutes",
-                  "displayName": "ingested_at_minutes",
+                  "fieldName": "_ingested_at",
+                  "displayName": "_ingested_at",
                   "scale": {
                     "type": "temporal"
                   }
@@ -416,8 +416,8 @@
                       "expression": "`album_release_date`"
                     },
                     {
-                      "name": "ingested_at_minutes",
-                      "expression": "`ingested_at_minutes`"
+                      "name": "_ingested_at",
+                      "expression": "`_ingested_at`"
                     },
                     {
                       "name": "sum(total_views)",
@@ -455,7 +455,7 @@
                     "fieldName": "album_release_date"
                   },
                   {
-                    "fieldName": "ingested_at_minutes"
+                    "fieldName": "_ingested_at"
                   },
                   {
                     "fieldName": "sum(total_views)"

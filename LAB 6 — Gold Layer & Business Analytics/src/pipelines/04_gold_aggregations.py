@@ -30,8 +30,9 @@ for path in possible_roots:
 
 from pyspark import pipelines as dp
 
-from src.setup.music_pipeline_setup import music_stats_tables, music_metadata_tables, _TIMESTAMP_GRANULARITY
+from src.setup.music_pipeline_setup import music_stats_tables, music_metadata_tables
 from src.transformations.aggregate_stats import aggregate_stats
+# docs to be updated - we assume default level od granularity imposed by datetime.now()
 
 @dp.table(
     name = music_stats_tables["gold_author"],
@@ -46,12 +47,12 @@ def gold_author_stats_by_minute():
 
     ext_facts_df = facts_df.join(dim_df, on ="video_id" ,how = "left")
 
-    return aggregate_stats(ext_facts_df, timestamp_granularity=_TIMESTAMP_GRANULARITY)
+    return aggregate_stats(ext_facts_df)
 
 
 @dp.table(
     name = music_stats_tables["gold_album"],
-    comment=f"Business view summarising total engagement metrics for albums across {_TIMESTAMP_GRANULARITY}-level snapshots.",
+    comment=f"Business view summarising total engagement metrics for albums across  snapshots.",
     table_properties={"quality": "gold", "table_type":"fact"}
 )
 def gold_album_stats_by_minute():
@@ -62,4 +63,4 @@ def gold_album_stats_by_minute():
 
     ext_facts_df = facts_df.join(dim_df, on ="video_id" ,how = "left")
 
-    return aggregate_stats(ext_facts_df, by = "album", timestamp_granularity = _TIMESTAMP_GRANULARITY)
+    return aggregate_stats(ext_facts_df, by = "album")

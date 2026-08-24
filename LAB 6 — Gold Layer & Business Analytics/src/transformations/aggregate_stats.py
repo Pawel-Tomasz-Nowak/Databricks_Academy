@@ -11,11 +11,10 @@ from pyspark.sql import DataFrame
 from pyspark.sql.functions import (
     col,
     countDistinct,
-    date_trunc,
     sum,
 )
 
-def aggregate_stats(silver_df: DataFrame, by:str = "author", timestamp_granularity:str="minute") -> DataFrame:
+def aggregate_stats(silver_df: DataFrame, by:str = "author") -> DataFrame:
     """Aggregate a full engagement statistics profile per custom grouper per ingestion-minute.
 
     Truncates the ``_ingested_at`` timestamp to minute precision and groups
@@ -34,14 +33,9 @@ def aggregate_stats(silver_df: DataFrame, by:str = "author", timestamp_granulari
         ``total_videos``, ``total/max/min/mean_views``, ``cv_views_pct``,
         and the corresponding columns for likes and comments.
     """
-    assert timestamp_granularity in ["minute", "hour", "day", "week", "month"], f"Invalid timestamp granularity: {timestamp_granularity} (or valid but let's be reasonable - we don't need such low granularity)"
-
-    ingestion_col = f"ingested_at_{timestamp_granularity}s"
-
-
     from pyspark.sql.functions import min, max, mean, stddev
 
-    agg_df = silver_df.groupBy(by, ingestion_col).agg(
+    agg_df = silver_df.groupBy(by, "_ingested_at").agg(
         countDistinct("video_id").alias("total_videos"),
 
         sum("total_views").alias("total_views"),
@@ -80,7 +74,7 @@ def aggregate_stats(silver_df: DataFrame, by:str = "author", timestamp_granulari
         "cv_comments_pct",
         (col("stddev_comments") / col("mean_comments")) * 100
     ).select(
-        by, ingestion_col, "total_videos",
+        by, "_ingested_at", "total_videos",
         "total_views", "min_views", "max_views", "mean_views","stddev_views","cv_views_pct",
         "total_likes", "min_likes", "max_likes", "mean_likes", "stddev_likes","cv_likes_pct",
         "total_comments", "min_comments", "max_comments", "mean_comments", "stddev_comments","cv_comments_pct"
