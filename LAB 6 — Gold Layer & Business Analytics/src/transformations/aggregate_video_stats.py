@@ -5,11 +5,6 @@ views, likes, and comments per snapshot window.
 """
 
 
-from pyspark.sql import DataFrame
-from pyspark.sql.functions import col, sum, row_number
-from pyspark.sql import Window
-
-
 # Update 20.08.2025: the previous aggregation logic was wrong.
 
 # Say we have a video with two records:

@@ -8,11 +8,7 @@ for views, likes, and comments across the grouper's catalogue.
 from typing import Final
 
 from pyspark.sql import DataFrame
-from pyspark.sql.functions import (
-    col,
-    countDistinct,
-    sum,
-)
+import pyspark.sql.functions as F
 
 def aggregate_stats(silver_df: DataFrame, by:str = "author") -> DataFrame:
     """Aggregate a full engagement statistics profile per custom grouper per ingestion-minute.
@@ -33,28 +29,27 @@ def aggregate_stats(silver_df: DataFrame, by:str = "author") -> DataFrame:
         ``total_videos``, ``total/max/min/mean_views``, ``cv_views_pct``,
         and the corresponding columns for likes and comments.
     """
-    from pyspark.sql.functions import min, max, mean, stddev
 
     agg_df = silver_df.groupBy(by, "_ingested_at").agg(
-        countDistinct("video_id").alias("total_videos"),
+        F.countDistinct("video_id").alias("total_videos"),
 
-        sum("total_views").alias("total_views"),
-        min("total_views").alias("min_views"),
-        max("total_views").alias("max_views"),
-        mean("total_views").alias("mean_views"),
-        stddev("total_views").alias("stddev_views"),
+        F.sum("total_views").alias("total_views"),
+        F.min("total_views").alias("min_views"),
+        F.max("total_views").alias("max_views"),
+        F.mean("total_views").alias("mean_views"),
+        F.stddev("total_views").alias("stddev_views"),
 
-        sum("total_likes").alias("total_likes"),
-        min("total_likes").alias("min_likes"),
-        max("total_likes").alias("max_likes"),
-        mean("total_likes").alias("mean_likes"),
-        stddev("total_likes").alias("stddev_likes"),
+        F.sum("total_likes").alias("total_likes"),
+        F.min("total_likes").alias("min_likes"),
+        F.max("total_likes").alias("max_likes"),
+        F.mean("total_likes").alias("mean_likes"),
+        F.stddev("total_likes").alias("stddev_likes"),
 
-        sum("total_comments").alias("total_comments"),
-        min("total_comments").alias("min_comments"),
-        max("total_comments").alias("max_comments"),
-        mean("total_comments").alias("mean_comments"),
-        stddev("total_comments").alias("stddev_comments"),
+        F.sum("total_comments").alias("total_comments"),
+        F.min("total_comments").alias("min_comments"),
+        F.max("total_comments").alias("max_comments"),
+        F.mean("total_comments").alias("mean_comments"),
+        F.stddev("total_comments").alias("stddev_comments"),
     )
 
     # One could wisely ask: how about zero division?
@@ -66,13 +61,13 @@ def aggregate_stats(silver_df: DataFrame, by:str = "author") -> DataFrame:
 
     agg_df = agg_df.withColumn(
         "cv_views_pct",
-        (col("stddev_views") / col("mean_views")) * 100 
+        (F.col("stddev_views") / F.col("mean_views")) * 100 
     ).withColumn(
         "cv_likes_pct",
-        (col("stddev_likes") / col("mean_likes")) * 100
+        (F.col("stddev_likes") / F.col("mean_likes")) * 100
     ).withColumn(
         "cv_comments_pct",
-        (col("stddev_comments") / col("mean_comments")) * 100
+        (F.col("stddev_comments") / F.col("mean_comments")) * 100
     ).select(
         by, "_ingested_at", "total_videos",
         "total_views", "min_views", "max_views", "mean_views","stddev_views","cv_views_pct",
