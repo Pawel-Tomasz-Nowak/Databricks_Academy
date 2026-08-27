@@ -61,7 +61,7 @@ def bronze_youtube_stats() -> None:
         .option("cloudFiles.inferColumnTypes", "true")
         .option("cloudFiles.schemaEvolutionMode", "rescue")
         .option("multiline", "true")
-        .option("cloudFiles.maxFilesPerTrigger", "1000")
+        .option("cloudFiles.maxFilesPerTrigger", "50")
         .load(json_landing_path)
         .withColumns({
             "_source_file_path": F.col("_metadata.file_path"),

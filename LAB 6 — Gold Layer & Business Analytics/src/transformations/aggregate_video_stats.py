@@ -20,6 +20,7 @@ views, likes, and comments per snapshot window.
 
 
 # docs to be updated - we assume default level od granularity imposed by datetime.now()
+from pyspark.sql import DataFrame
 
 def aggregate_video_stats(silver_df: DataFrame) -> DataFrame:
     """Aggregate total engagement metrics per video per ingestion-timestamp_granularity.

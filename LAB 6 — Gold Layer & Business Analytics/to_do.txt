@@ -1,0 +1,1 @@
+1. Remove "ingested_at_hours" column from silver music stats

@@ -31,6 +31,15 @@ from pyspark import pipelines as dp
 from src.setup.music_pipeline_setup import music_stats_tables
 from src.transformations.aggregate_video_stats import aggregate_video_stats
 
+fact_expectations = {
+    "video_id_valid": "video_id IS NOT NULL AND length(trim(video_id)) > 0",
+    "ingested_at_valid": "_ingested_at IS NOT NULL AND to_date(_ingested_at) IS NOT NULL AND to_date(_ingested_at) < current_date()",
+    "total_views_nonnegative": "total_views IS NULL OR total_views >= 0",
+    "total_likes_nonnegative": "total_likes IS NULL OR total_likes >= 0",
+    "total_comment_nonnegative": "total_comments IS NULL OR total_comments >= 0"
+}
+
+
 @dp.materialized_view(
     name=music_stats_tables["fact"],
     comment="Fact table showing the total views, likes, and comments for each video.",
@@ -39,6 +48,7 @@ from src.transformations.aggregate_video_stats import aggregate_video_stats
         "grain": "video",
     },
 )
+@dp.expect_all_or_fail(fact_expectations)
 def fact_video_stats():
     """Reads silver materialized view as a static snapshot and aggregates to fact-level.
 

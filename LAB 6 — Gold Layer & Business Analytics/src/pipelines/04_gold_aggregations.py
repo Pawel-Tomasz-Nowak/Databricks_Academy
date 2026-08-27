@@ -39,6 +39,7 @@ from src.transformations.aggregate_stats import aggregate_stats
     comment="Business view summarising total engagement metrics for authors across minute-level snapshots.",
     table_properties={"quality": "gold", "table_type": "fact"},
 )
+@dp.expect_or_fail("author is not null", "author IS NOT NULL AND len(trim(author)) > 0")
 def gold_author_stats_by_minute():
     """Joins fact and dim materialized views and aggregates by author.
 
@@ -58,6 +59,7 @@ def gold_author_stats_by_minute():
     comment="Business view summarising total engagement metrics for albums across snapshots.",
     table_properties={"quality": "gold", "table_type": "fact"},
 )
+@dp.expect_or_fail("album is not null", "album IS NOT NULL AND len(trim(album)) > 0")
 def gold_album_stats_by_minute():
     """Joins fact and dim materialized views and aggregates by album."""
     facts_df = spark.read.table(music_stats_tables["fact"])
