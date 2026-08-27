@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import count_distinct
+import pyspark.sql.functions as F
 import pytest
 
 from path_resolver import _init_bundle_path
@@ -16,6 +16,15 @@ music_metadata_tables= {
             "silver_quarantine": f"{catalog}.{schema}.silver_music_quarantine",
             "gold": f"{catalog}.{schema}.dim_music_metadata",
         }
+
+music_stats_table= {
+            "bronze": f"{catalog}.{schema}.bronze_music_stats",
+            "silver": f"{catalog}.{schema}.silver_music_stats",
+            "fact": f"{catalog}.{schema}.fact_music_stats", # basic fact music stats - video-based granularity
+            "gold_album": f"{catalog}.{schema}.gold_album_music_stats", # album-based granularity
+            "gold_author": f"{catalog}.{schema}.gold_author_music_stats" # author-based granularitiy
+}
+
 
 def test_reconciliation_bronze_to_silver_music_metadata(spark: SparkSession):
     try:
@@ -34,4 +43,27 @@ def test_reconciliation_bronze_to_silver_music_metadata(spark: SparkSession):
     assert bronze_count == (silver_clean_count + silver_quarantine_count), (
         f"Silent data loss detected!\n"
         f"Bronze ({bronze_count}) != Silver ({silver_clean_count}) + Quarantine ({silver_quarantine_count})"
+    )
+
+
+def test_reconciliation_total_views_album_vs_author_songs(spark: SparkSession):
+    try:
+        video_df = spark.read.table(music_stats_table["fact"])
+        author_df = spark.read.table(music_stats_table["gold_author"])
+        album_df = spark.read.table(music_stats_table["gold_album"])
+    except Exception as exc:
+        pytest.fail(f"Could not read one of the Gold tables: {exc}")
+
+
+  
+    video_views = video_df.agg(F.sum("total_views")).first()[0] or 0
+    author_views = author_df.agg(F.sum("total_views")).first()[0] or 0
+    album_views = album_df.agg(F.sum("total_views")).first()[0] or 0
+
+
+    assert video_views == author_views == album_views, (
+        f"Silent data loss detected across Gold aggregates!\n"
+        f"Fact Table Views:   {video_views}\n"
+        f"Author Views:       {author_views}\n"
+        f"Album Views:        {album_views}"
     )
