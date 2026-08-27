@@ -36,6 +36,7 @@ def get_pipeline_paths(catalog: str, schema: str, volume: str) -> dict:
             "bronze": f"{catalog}.{schema}.bronze_music_metadata",
             "silver": f"{catalog}.{schema}.silver_music_metadata",
             "silver_history": f"{catalog}.{schema}.silver_music_metadata_history",
+            "silver_quarantine": f"{catalog}.{schema}.silver_music_quarantine",
             "gold": f"{catalog}.{schema}.dim_music_metadata",
         },
         "music_stats_tables": {

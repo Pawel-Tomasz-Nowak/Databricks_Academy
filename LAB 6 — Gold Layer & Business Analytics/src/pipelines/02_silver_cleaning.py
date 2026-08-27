@@ -112,7 +112,7 @@ reasons_array = F.array([
 ])
 expect_negation = " OR ".join([f"NOT ({cond})" for cond in music_metadata_expectations.values()])
 @dp.table(
-    name = "silver_music_quarantine",
+    name = music_metadata_tables["silver_quarantine"],
     comment="Music metadata quarantine. Records that failed expectations are dropped from the silver table.",
     table_properties={"quality": "silver"}
 )
