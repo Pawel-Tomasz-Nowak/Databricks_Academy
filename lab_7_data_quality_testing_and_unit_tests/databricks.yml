@@ -113,6 +113,21 @@ resources:
           pipeline_task:
             pipeline_id: ${resources.pipelines.music_dlt_pipeline.id}
 
+        # Task 4: Automated Data Quality & Reconciliation Gate
+        - task_key: reconciliation_gate
+          depends_on:
+            - task_key: run_dlt_pipeline
+          existing_cluster_id: ${var.existing_cluster_id}
+          spark_python_task:
+            python_file: src/quality/reconciliation_gate.py
+            parameters:
+              - "--catalog"
+              - "${var.catalog_name}"
+              - "--schema"
+              - "${var.schema_name}"
+              - "--volume"
+              - "${var.landing_zone_name}"
+
 # ------------------------------------------------------------------------------
 # 3. TARGETS (DEV & PROD PRESETS)
 # ------------------------------------------------------------------------------
