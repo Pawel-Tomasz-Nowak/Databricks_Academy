@@ -63,9 +63,16 @@ lab_6_gold_layer_and_business_analytics/
 	src/
 	tests/
 lab_7_data_quality_testing_and_unit_tests/
+	databricks.yml
 	README.md
 	BI/
+	screenshots/
 	src/
+		setup/
+		producer/
+		pipelines/
+		quality/
+		transformations/
 	tests/
 ```
 
@@ -171,6 +178,55 @@ This lab builds an end-to-end music analytics pipeline using Databricks Lakeflow
 * `gold_music_stats_by_author`, `gold_music_stats_by_video`
 
 **Status:** ✅ Completed with full documentation, inline docstrings, and clean code.
+
+### lab_6_gold_layer_and_business_analytics ✅
+
+This lab focuses on the gold layer and the business analytics assets that sit on top of the music pipeline. It introduces a video-grain fact table, a metadata dimension table, artist- and album-level rollups, and the SQL assets needed to expose the data in dashboards, alerts, and secured views.
+
+**Main assets:**
+* `fact_music_stats` — video-level fact table used for reporting snapshots
+* `dim_music_metadata` — metadata dimension used to label and secure BI queries
+* `gold_author_music_stats` — artist-level aggregate with descriptive statistics
+* `gold_album_music_stats` — album-level aggregate with descriptive statistics
+* `BI/Music Artist Pulse.lvdash.json` — dashboard draft for exploring artist performance over time
+* `BI/volume_drop_alert.dbalert.json` — alert query that checks whether the latest fact batch is smaller than the expected metadata set
+* `BI/RLS/` and `BI/CLS/` — SQL assets for row-level filtering and column masking
+* `screenshots/full_run_pipeline_graph.png` — screenshot of a full pipeline run
+* `src/notebooks/scratchpads/data_volumes_test.ipynb` — small development notebook for ad hoc validation
+
+**Code areas documented in this update:**
+* `src/pipelines/03_gold_metadata.py`
+* `src/pipelines/04_gold_aggregations.py`
+* `src/transformations/aggregate_stats.py`
+* `src/transformations/aggregate_video_stats.py`
+* `src/setup/music_pipeline_setup.py`
+
+**Status:** ✅ README and Python inline documentation updated in English without changing runtime logic.
+
+### lab_7_data_quality_testing_and_unit_tests
+
+This lab extends the medallion pipeline with comprehensive data quality controls and a pytest test suite backed by Databricks Connect. New additions compared to lab 6 include a metadata quarantine table, `@dp.expect_*` rules on every pipeline stage, a post-pipeline reconciliation job task, and unit plus integration tests for the core transformation functions.
+
+**Key additions over lab 6:**
+* `silver_music_quarantine` — streaming table that captures rejected metadata rows and tags each one with the violated rule name(s)
+* `@dp.expect_all_or_fail` / `@dp.expect_all_or_drop` on all silver and gold pipeline stages
+* `@dp.expect_or_fail` on both gold aggregate tables to prevent null author or album keys from entering the reports
+* `src/quality/reconciliation_gate.py` — Task 4 of the ETL job: verifies bronze count equals clean silver count plus quarantine count, and that total view sums are identical across `fact_music_stats`, `gold_author_music_stats`, and `gold_album_music_stats`
+* `src/quality/no_delta_constraints_justification.md` — design note explaining the choice of SDP expectations over Delta constraints
+* `tests/` — pytest suite using `DatabricksSession` with four test files covering `aggregate_stats`, `aggregate_video_stats`, `compute_per_hour_deltas` edge cases, and live reconciliation checks against `dbr_dev`
+
+**BI assets (shared with lab 6 and extended):**
+* `Music Artist Pulse` dashboard
+* `Music Data Quality & Medallion Scorecard` dashboard — new scorecard showing pass rate, quarantine count, medallion flow, and quarantine inspection
+* `volume_drop_alert` alert
+* `BI/RLS/` and `BI/CLS/` SQL assets for row-level and column-level security
+
+**Tables created (`dbr_dev.music_analytics` / `dbr_prod.music_analytics`):**
+* Bronze: `bronze_music_stats`, `bronze_music_metadata`
+* Silver: `silver_music_stats`, `silver_music_metadata`, `silver_music_quarantine`, `silver_music_metadata_history`
+* Gold: `fact_music_stats`, `dim_music_metadata`, `gold_author_music_stats`, `gold_album_music_stats`
+
+**Status:** Documented and updated with English-only docstrings, cleaned inline comments, and a rewritten README.
 
 ## Notes
 

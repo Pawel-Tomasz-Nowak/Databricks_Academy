@@ -1,9 +1,7 @@
-"""Silver layer processing for music analytics pipeline.
+"""Build the silver layer and lab_7 data-quality controls.
 
-This stage keeps the bronze data trustworthy enough for downstream reporting.
-The expensive part is not formatting itself; it is making each row comparable
-across snapshots so the per-hour delta logic can be meaningful.
-Implemented using Databricks Lakeflow (pyspark.pipelines).
+Compared with lab 6, this file adds stronger expectations, a quarantine table
+for rejected metadata rows, and an SCD Type 2 history flow for metadata changes.
 """
 
 import os
@@ -11,13 +9,13 @@ import sys
 
 from pyspark.sql import SparkSession, Window
 
-# The SDP runtime evaluates pipeline files dynamically — __file__ is not set.
-# bundle.root is injected via spark.conf by the pipeline cluster configuration.
+# Lakeflow Spark Declarative Pipelines evaluates files dynamically, so __file__
+# is not available. The bundle root is injected through spark.conf instead.
 spark = SparkSession.getActiveSession() or SparkSession.builder.getOrCreate()
 bundle_root = spark.conf.get("bundle.root", "")
 possible_roots = [
-    bundle_root, 
-    os.getcwd(), 
+    bundle_root,
+    os.getcwd(),
     os.path.abspath(os.path.join(os.getcwd(), "..", ".."))
 ]
 
@@ -35,25 +33,28 @@ from src.setup.music_pipeline_setup import (
     music_metadata_tables,
     music_stats_tables
 )
+
+# These expectations enforce the minimum quality needed for downstream velocity
+# metrics and business aggregates to remain interpretable.
 silver_youtube_stats_expectations = {
-    "valid_author":      "author IS NOT NULL AND LEN(trim(author)) > 0",
-    "valid_video_id":    "video_id IS NOT NULL AND LEN(trim(video_id)) > 0",
+    "valid_author": "author IS NOT NULL AND LEN(trim(author)) > 0",
+    "valid_video_id": "video_id IS NOT NULL AND LEN(trim(video_id)) > 0",
     "valid_video_title": "video_title IS NOT NULL AND LEN(trim(video_title)) > 0",
     "comment_count_positive_or_null": "comment_count IS NULL OR comment_count > 0",
-    "like_count_positive_or_null":    "like_count IS NULL OR like_count > 0",
-    "view_count_positive_or_null":    "view_count IS NULL OR view_count > 0",
+    "like_count_positive_or_null": "like_count IS NULL OR like_count > 0",
+    "view_count_positive_or_null": "view_count IS NULL OR view_count > 0",
     "valid_published_at": "published_at IS NOT NULL AND published_at >= DATE('2005-04-23') AND published_at <= current_date()"
 }
+
+
 @dp.materialized_view(
     name=music_stats_tables["silver"],
-    comment="Cleaned YouTube stats. Invalid records are dropped or cause pipeline failure.",
+    comment="Cleaned YouTube stats with typed columns, deduplicated snapshots, and per-hour delta metrics.",
     table_properties={"quality": "silver"},
 )
 @dp.expect_all_or_fail(silver_youtube_stats_expectations)
 def silver_youtube_stats():
-    """Reads raw bronze data, casts schema types, and computes per-hour metrics.
-    Using spark.read.table() as recommended in Databricks LDP.
-    """
+    """Cast bronze stats to stable types and compute rate-of-change metrics."""
     df_raw = spark.read.table(music_stats_tables["bronze"])
 
     columns_to_cast = {
@@ -71,26 +72,28 @@ def silver_youtube_stats():
     return compute_per_hour_deltas(df_clean)
 
 
-
-# MUSIC METADATA!!!!
-
 music_metadata_expectations = {
-    "valid_url":                "url IS NOT NULL AND LEN(trim(url)) > 0",
-    "valid_title":              "title IS NOT NULL AND LEN(trim(title)) > 0",
-    "valid_album":              "album IS NOT NULL AND LEN(trim(album)) > 0",
-    "valid_video_id":           "video_id IS NOT NULL AND LEN(trim(video_id)) > 0",
+    "valid_url": "url IS NOT NULL AND LEN(trim(url)) > 0",
+    "valid_title": "title IS NOT NULL AND LEN(trim(title)) > 0",
+    "valid_album": "album IS NOT NULL AND LEN(trim(album)) > 0",
+    "valid_video_id": "video_id IS NOT NULL AND LEN(trim(video_id)) > 0",
     "valid_album_release_date": "album_release_date IS NOT NULL AND album_release_date <= current_date()",
-    "valid_author":             "author IS NOT NULL AND LEN(trim(author)) > 0",
+    "valid_author": "author IS NOT NULL AND LEN(trim(author)) > 0",
 }
+
 
 @dp.materialized_view(
     name=music_metadata_tables["silver"],
-    comment="Current music metadata snapshot. Keeps the latest metadata row per video_id from all landed CSV files.",
+    comment="Latest clean metadata snapshot per video_id, keeping only the most recent valid landed record.",
     table_properties={"quality": "silver"},
 )
 @dp.expect_all_or_drop(music_metadata_expectations)
 def silver_music_metadata_current():
-    """Build the latest metadata snapshot per video from the bronze append-only feed."""
+    """Build the latest valid metadata snapshot per ``video_id``.
+
+    The bronze metadata table is append-only, so the silver snapshot uses a
+    window ordered by ingestion time and source file path to keep the newest row.
+    """
     df_raw = spark.read.table(music_metadata_tables["bronze"])
     latest_row_window = Window.partitionBy("video_id").orderBy(
         F.col("_ingested_at").desc(),
@@ -106,39 +109,42 @@ def silver_music_metadata_current():
         .drop("_row_num")
     )
 
+
+# Reuse the same expectation rules to capture why a metadata row was excluded
+# from the clean silver snapshot.
 reasons_array = F.array([
     F.when(F.expr(f"NOT ({cond})"), F.lit(rule_name))
     for rule_name, cond in music_metadata_expectations.items()
 ])
 expect_negation = " OR ".join([f"NOT ({cond})" for cond in music_metadata_expectations.values()])
+
+
 @dp.table(
-    name = music_metadata_tables["silver_quarantine"],
-    comment="Music metadata quarantine. Records that failed expectations are dropped from the silver table.",
+    name=music_metadata_tables["silver_quarantine"],
+    comment="Metadata quarantine table with records rejected from the clean silver snapshot and their rule violations.",
     table_properties={"quality": "silver"}
 )
 def silver_music_metadata_quarantine():
-    """Reads raw bronze data, casts schema types, and computes per-hour metrics.
-    Using spark.read.table() as recommended in Databricks LDP.
-    """
+    """Capture rejected metadata rows together with the violated rule names."""
     df_raw = spark.read.table(music_metadata_tables["bronze"])
 
-    df_filtered = df_raw.withColumn("video_id", F.regexp_extract(F.col("url"), r"v=([a-zA-Z0-9_-]{11})", 1)).where(expect_negation)
+    df_filtered = df_raw.withColumn(
+        "video_id",
+        F.regexp_extract(F.col("url"), r"v=([a-zA-Z0-9_-]{11})", 1)
+    ).where(expect_negation)
 
     quarantine_df = df_filtered.withColumn(
-    "_quarantine_reason",
-    F.concat_ws(", ", F.array_compact(reasons_array)))
+        "_quarantine_reason",
+        F.concat_ws(", ", F.array_compact(reasons_array))
+    )
 
     return quarantine_df
-
-  
-
-# music metadatahistory
 
 
 @dp.temporary_view(name="silver_music_metadata_cdc_source")
 @dp.expect_all_or_drop(music_metadata_expectations)
 def silver_music_metadata_cdc_source():
-    """Expose metadata changes as an ordered append-only source for SCD Type 2 processing."""
+    """Expose ordered metadata changes as the source for SCD Type 2 history."""
     return (
         spark.readStream.table(music_metadata_tables["bronze"])
         .withColumn("video_id", F.regexp_extract(F.col("url"), r"v=([a-zA-Z0-9_-]{11})", 1))
@@ -152,15 +158,12 @@ dp.create_streaming_table(
     table_properties={"quality": "silver"},
 )
 
+# A deterministic secondary ordering column is required because multiple CSV
+# files can land with the same _ingested_at for a single video_id.
 dp.create_auto_cdc_flow(
     target=music_metadata_tables["silver_history"],
     source="silver_music_metadata_cdc_source",
     keys=["video_id"],
-    # Use a deterministic tie-breaker for rows that share the same _ingested_at.
-    # Example: two CSV files can land in the same ingestion batch for one video_id:
-    # file A changes author, file B changes album. Ordering only by _ingested_at
-    # makes those changes ambiguous, so one of them can be skipped as "not newer".
-    # Adding _source_file_path gives AUTO CDC a stable secondary ordering key.
     sequence_by=F.struct(F.col("_ingested_at"), F.col("_source_file_path")),
     stored_as_scd_type=2,
     track_history_column_list=["url", "author", "title", "album", "album_release_date"],

@@ -1,3 +1,8 @@
+"""Create the gold music metadata dimension for business-facing analytics.
+
+This file exposes the current metadata snapshot as a dimension table used by the
+business dashboards, alerting logic, and row/column security SQL assets.
+"""
 import os
 import sys
 
@@ -5,13 +10,13 @@ from pyspark.sql import SparkSession
 import pyspark.pipelines as dp
 import pyspark.sql.functions as F
 
-# The SDP runtime evaluates pipeline files dynamically — __file__ is not set.
-# bundle.root is injected via spark.conf by the pipeline cluster configuration.
+# Lakeflow Spark Declarative Pipelines evaluates files dynamically, so __file__
+# is not available. The bundle root is injected through spark.conf instead.
 spark = SparkSession.getActiveSession() or SparkSession.builder.getOrCreate()
 bundle_root = spark.conf.get("bundle.root", "")
 possible_roots = [
-    bundle_root, 
-    os.getcwd(), 
+    bundle_root,
+    os.getcwd(),
     os.path.abspath(os.path.join(os.getcwd(), "..", ".."))
 ]
 
@@ -25,19 +30,19 @@ from src.setup.music_pipeline_setup import (
     music_metadata_tables
 )
 
+
 @dp.materialized_view(
     name=music_metadata_tables["gold"],
-    comment="Gold dimension table for music metadata — current state per video, url excluded.",
+    comment="Gold dimension table for music metadata; keeps the current video attributes without the raw source URL.",
     table_properties={"quality": "gold", "table_type": "dimension"},
     cluster_by=["author", "album"],
 )
 def golden_music_metadata():
-    """Reads the silver metadata snapshot (materialized view) and drops the url column.
+    """Return the current metadata dimension used by gold analytics assets.
 
-    silver_music_metadata is a materialized view representing the current state
-    per video_id. spark.read.table is required; readStream cannot consume a MV.
+    The upstream silver metadata table is a materialized view that already holds
+    the latest known record per ``video_id``. This gold step removes the source
+    URL so downstream BI assets work with business-facing descriptive columns.
     """
     silver_tbl = spark.read.table(music_metadata_tables["silver"])
     return silver_tbl.drop(F.col("url"))
-
-

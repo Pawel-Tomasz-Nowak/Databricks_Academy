@@ -1,22 +1,21 @@
-"""Gold layer aggregations for music analytics pipeline.
+"""Create the video-grain fact table used by gold business aggregates.
 
-The value of the gold layer is not the raw row count; it is the business-ready
-view over time. Minute-level aggregation makes the trend readable without
-loading the full streaming history back into a reporting tool.
-Implemented using Databricks Lakeflow (pyspark.pipelines).
+The fact layer preserves one metric snapshot per ``video_id`` and ingestion
+timestamp, which downstream album- and artist-level rollups can reuse without
+re-reading the silver transformation logic.
 """
 import os
 import sys
 
 from pyspark.sql import SparkSession
 
-# The SDP runtime evaluates pipeline files dynamically — __file__ is not set.
-# bundle.root is injected via spark.conf by the pipeline cluster configuration.
+# Lakeflow Spark Declarative Pipelines evaluates files dynamically, so __file__
+# is not available. The bundle root is injected through spark.conf instead.
 spark = SparkSession.getActiveSession() or SparkSession.builder.getOrCreate()
 bundle_root = spark.conf.get("bundle.root", "")
 possible_roots = [
-    bundle_root, 
-    os.getcwd(), 
+    bundle_root,
+    os.getcwd(),
     os.path.abspath(os.path.join(os.getcwd(), "..", ".."))
 ]
 
@@ -31,6 +30,8 @@ from pyspark import pipelines as dp
 from src.setup.music_pipeline_setup import music_stats_tables
 from src.transformations.aggregate_video_stats import aggregate_video_stats
 
+# Lab 7 adds a strict gate on the fact table so invalid snapshots stop the
+# pipeline before downstream dashboards and scorecards consume them.
 fact_expectations = {
     "video_id_valid": "video_id IS NOT NULL AND length(trim(video_id)) > 0",
     "ingested_at_valid": "_ingested_at IS NOT NULL AND to_date(_ingested_at) IS NOT NULL AND to_date(_ingested_at) < current_date()",
@@ -42,7 +43,7 @@ fact_expectations = {
 
 @dp.materialized_view(
     name=music_stats_tables["fact"],
-    comment="Fact table showing the total views, likes, and comments for each video.",
+    comment="Fact table with one video-level snapshot of views, likes, and comments per ingestion timestamp.",
     table_properties={
         "table_type": "fact",
         "grain": "video",
@@ -50,10 +51,11 @@ fact_expectations = {
 )
 @dp.expect_all_or_fail(fact_expectations)
 def fact_video_stats():
-    """Reads silver materialized view as a static snapshot and aggregates to fact-level.
+    """Return the business-facing fact table derived from silver stats.
 
-    silver_music_stats is a materialized view (full snapshot with LAG deltas),
-    so it cannot be read with readStream — spark.read.table is required.
+    ``silver_music_stats`` is materialized, so the function reads it as a static
+    table snapshot and then delegates the final column selection to
+    ``aggregate_video_stats``.
     """
     facts_df = spark.read.table(music_stats_tables["silver"])
     return aggregate_video_stats(facts_df)

@@ -16,6 +16,7 @@ from src.transformations.aggregate_stats import aggregate_stats
 
 @pytest.fixture
 def sample_silver_df(spark: SparkSession):
+    """Create a compact silver-like fixture shared by the aggregate tests."""
     schema = StructType([
         StructField("author", StringType(), False),
         StructField("album", StringType(), False),
@@ -27,7 +28,7 @@ def sample_silver_df(spark: SparkSession):
     ])
 
     data = [
-        # Metallica - Album "Black Album" - 2 wideo w tej samej minucie
+        # Metallica, album "Black Album": two videos in the same snapshot.
         (
             "Metallica",
             "Black Album",
@@ -46,7 +47,7 @@ def sample_silver_df(spark: SparkSession):
             6,
             datetime(2026, 8, 26, 16, 0, 0),
         ),
-        # Megadeth - Album "Rust in Peace" - 1 wideo (pojedyncza próba)
+        # Megadeth, album "Rust in Peace": a single-video sample.
         (
             "Megadeth",
             "Rust in Peace",
@@ -69,7 +70,7 @@ def test_aggregate_stats_by_author(spark: SparkSession, sample_silver_df):
     rows = result_df.orderBy("author").collect()
     assert len(rows) == 2
 
-    # Megadeth (1 wideo) -> stddev jest None, cv jest None
+    # Megadeth has one video, so stddev and coefficient of variation stay null.
     megadeth = rows[0]
     assert megadeth["author"] == "Megadeth"
     assert megadeth["total_videos"] == 1
@@ -78,9 +79,9 @@ def test_aggregate_stats_by_author(spark: SparkSession, sample_silver_df):
     assert megadeth["stddev_views"] is None
     assert megadeth["cv_views_pct"] is None
 
-    # Metallica (2 wideo: 100 i 300)
-    # Mean: 200.0, Sample StdDev: sqrt(((100-200)^2 + (300-200)^2) / 1) ≈ 141.421356
-    # CV%: (141.421356 / 200.0) * 100 ≈ 70.71%
+    # Metallica has two videos with view counts 100 and 300.
+    # Mean: 200.0, sample stddev: sqrt(((100-200)^2 + (300-200)^2) / 1) ≈ 141.421356.
+    # CV%: (141.421356 / 200.0) * 100 ≈ 70.71%.
     metallica = rows[1]
     assert metallica["author"] == "Metallica"
     assert metallica["total_videos"] == 2

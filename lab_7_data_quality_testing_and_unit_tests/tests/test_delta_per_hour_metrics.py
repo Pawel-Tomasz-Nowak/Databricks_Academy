@@ -16,7 +16,7 @@ from src.transformations.delta_per_hour_metrics import compute_per_hour_deltas
 
 
 def test_compute_per_hour_deltas_edge_cases(spark: SparkSession):
-    # 1. Definiujemy jawny schemat wejściowy Silver
+    # 1. Define an explicit silver-layer input schema.
     schema = StructType([
         StructField("video_id", StringType(), False),
         StructField("_ingested_at", TimestampType(), False),
@@ -25,53 +25,53 @@ def test_compute_per_hour_deltas_edge_cases(spark: SparkSession):
         StructField("comment_count", IntegerType(), True),
     ])
 
-    # 2. Tworzymy syntetyczny mock pokrywający 5 przypadków brzegowych
+    # 2. Create synthetic input covering five edge cases.
     data = [
         # --- VIDEO 1 ---
-        # Przypadek 1: Pierwszy snapshot -> Brak historii (delt = None)
+        # Case 1: first snapshot -> no history, so deltas stay null.
         ("vid_1", datetime(2026, 8, 26, 10, 0, 0), 1000, 100, 10),
-        # Przypadek 2: Happy Path -> Delta 2h, +1000 views (500/h), +50 likes (25/h)
+        # Case 2: normal growth over 2 hours.
         ("vid_1", datetime(2026, 8, 26, 12, 0, 0), 2000, 150, 20),
-        # Przypadek 3: Zero Time Delta (dt = 0) -> Bezpieczne dzielenie (None)
+        # Case 3: zero time delta -> safe division returns null.
         ("vid_1", datetime(2026, 8, 26, 12, 0, 0), 2500, 160, 25),
-        # Przypadek 4: Wejściowy NULL w metryce (like_count=None) -> like_delta = None
+        # Case 4: input null in like_count -> like delta stays null.
         ("vid_1", datetime(2026, 8, 26, 14, 0, 0), 3000, None, 30),
         # --- VIDEO 2 ---
-        # Przypadek 5: Izolacja partycji (Nowe video) -> Brak historii (delt = None)
+        # Case 5: partition isolation for a new video_id.
         ("vid_2", datetime(2026, 8, 26, 15, 0, 0), 500, 50, 5),
     ]
 
     input_df = spark.createDataFrame(data, schema)
 
-    # 3. Wywołanie transformacji
+    # 3. Execute the transformation.
     result_df = compute_per_hour_deltas(input_df)
 
-    # 4. Pobranie wyników posortowanych deterministycznie
+    # 4. Collect deterministically ordered results.
     rows = (
         result_df.orderBy("video_id", "_ingested_at_hours", "view_count")
         .collect()
     )
 
-    # --- Asercje (Weryfikacja wyników) ---
+    # --- Assertions ---
 
-    # Wiersz 0 (vid_1, 10:00) - Pierwszy snapshot
+    # Row 0 (vid_1, 10:00): first snapshot.
     assert rows[0]["video_id"] == "vid_1"
     assert rows[0]["view_delta_per_hour"] is None
     assert rows[0]["like_delta_per_hour"] is None
 
-    # Wiersz 1 (vid_1, 12:00) - Przyrost normalny (1000 views / 2h = 500.0, 50 likes / 2h = 25.0)
+    # Row 1 (vid_1, 12:00): normal growth, 1000 views / 2h = 500.0 and 50 likes / 2h = 25.0.
     assert rows[1]["view_delta_per_hour"] == 500.0
     assert rows[1]["like_delta_per_hour"] == 25.0
     assert rows[1]["comment_delta_per_hour"] == 5.0
 
-    # Wiersz 2 (vid_1, 12:00) - Zero Time Delta (dt < 1e-8 -> wynik None, brak ZeroDivisionError)
+    # Row 2 (vid_1, 12:00): zero time delta remains null and avoids ZeroDivisionError.
     assert rows[2]["view_delta_per_hour"] is None
 
-    # Wiersz 3 (vid_1, 14:00) - Obsługa NULL (like_count is None -> like_delta_per_hour is None)
+    # Row 3 (vid_1, 14:00): null like_count propagates to a null hourly delta.
     assert rows[3]["view_delta_per_hour"] == 250.0  # (3000 - 2500) / 2h
     assert rows[3]["like_delta_per_hour"] is None
 
-    # Wiersz 4 (vid_2, 15:00) - Nowa partycja video_id (musi być None, nie łączy z vid_1)
+    # Row 4 (vid_2, 15:00): a new video_id starts a fresh partition.
     assert rows[4]["video_id"] == "vid_2"
     assert rows[4]["view_delta_per_hour"] is None
     assert rows[4]["like_delta_per_hour"] is None
