@@ -1,1 +1,4 @@
 1. Remove "ingested_at_hours" column from silver music stats
+2. add "silver_ingested", at columns ertc. to now exactly when the transtiion from one laer to another took place
+3. Add documentation to lab_6 and lab_7
+4. Rename all filees to be of the form x_y_z (i.e. no spaces and lowercase only)

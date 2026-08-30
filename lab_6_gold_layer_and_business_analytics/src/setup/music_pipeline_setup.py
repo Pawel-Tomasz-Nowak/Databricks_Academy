@@ -1,5 +1,8 @@
-"""Shared configuration, schemas and bootstrap for the LAB 5 music pipeline.
-This file is DLT-import safe. It delays SparkSession and dbutils initialization.
+"""Define shared configuration and bootstrap helpers for the lab_6 music pipeline.
+
+This module is imported by both Lakeflow Spark Declarative Pipeline files and
+job-style Python tasks. It keeps Spark-dependent work delayed until runtime so
+imports remain safe in pipeline compilation contexts.
 """
 import argparse
 import os
@@ -24,7 +27,17 @@ yt_video_url = "https://www.googleapis.com/youtube/v3/videos"
 # 2. PATH RESOLVER
 # ------------------------------------------------------------------------------
 def get_pipeline_paths(catalog: str, schema: str, volume: str) -> dict:
-    """Returns a dictionary of paths and table names for the given Unity Catalog entities."""
+    """Return the resolved volume paths and table names for a target environment.
+
+    Args:
+        catalog: Unity Catalog catalog used by the project.
+        schema: Unity Catalog schema that stores the pipeline tables.
+        volume: Unity Catalog volume used for landing files and metadata files.
+
+    Returns:
+        Dictionary with derived volume paths plus bronze, silver, fact, and gold
+        table names used across the project.
+    """
     base_volume = f"/Volumes/{catalog}/{schema}/{volume}"
     return {
         "volume_path": f"{catalog}.{schema}.{volume}",
@@ -41,19 +54,20 @@ def get_pipeline_paths(catalog: str, schema: str, volume: str) -> dict:
         "music_stats_tables": {
             "bronze": f"{catalog}.{schema}.bronze_music_stats",
             "silver": f"{catalog}.{schema}.silver_music_stats",
-            "fact": f"{catalog}.{schema}.fact_music_stats", # basic fact music stats - video-based granularity
-            "gold_album": f"{catalog}.{schema}.gold_album_music_stats", # album-based granularity
-            "gold_author": f"{catalog}.{schema}.gold_author_music_stats" # author-based granularitiy
-        } # the granularity heirarchy is as follows (from most detailed to less): video -> album -> artist
+            "fact": f"{catalog}.{schema}.fact_music_stats",  # Video-level fact snapshot.
+            "gold_album": f"{catalog}.{schema}.gold_album_music_stats",  # Album-level aggregate.
+            "gold_author": f"{catalog}.{schema}.gold_author_music_stats"  # Artist-level aggregate.
+        }  # Grain narrows from video snapshot to album rollup to artist rollup.
     }
 
 
 # ------------------------------------------------------------------------------
 # 3. SAFE ARGUMENT PARSING (For Global Variables & SDP Imports)
 # ------------------------------------------------------------------------------
-# When the SDP runtime imports this module there are no CLI args — parse_known_args
-# silently ignores unknown args rather than raising SystemExit.
-_parser = argparse.ArgumentParser(description="Music Pipeline Configuration Parser")
+# When the pipeline runtime imports this module there are no CLI arguments.
+# parse_known_args prevents unexpected Databricks-injected arguments from
+# terminating the import with SystemExit.
+_parser = argparse.ArgumentParser(description="Music pipeline configuration parser")
 _parser.add_argument("--catalog", default=os.environ.get("DBRICKS_CATALOG"))
 _parser.add_argument("--schema", default=os.environ.get("DBRICKS_SCHEMA"))
 _parser.add_argument("--volume", default=os.environ.get("DBRICKS_VOLUME"))
@@ -64,7 +78,8 @@ catalog_name = _args.catalog
 music_schema = _args.schema
 volume_name = _args.volume
 
-# DLT/Lakeflow Pipeline fallback: Try extracting config from active Spark session
+# Fall back to spark.conf when the module is imported from a pipeline file rather
+# than executed as a task with explicit CLI parameters.
 if not all([catalog_name, music_schema, volume_name]):
     try:
         from pyspark.sql import SparkSession
@@ -100,14 +115,18 @@ else:
 # 4. BOOTSTRAP LOGIC (Executed only when run directly as a script)
 # ------------------------------------------------------------------------------
 def bootstrap_infrastructure() -> None:
-    """Creates the catalog, schema, volume, and required directory structures."""
+    """Create the catalog, schema, volume, and landing directories.
+
+    The task is designed to run before the ingestion and pipeline tasks so the
+    landing zone and metadata folder always exist before new files are written.
+    """
     if not all([catalog_name, music_schema, volume_name]):
         raise ValueError(
             "Setup error: Missing required parameters (catalog, schema, volume). "
             "Ensure databricks.yml passes CLI parameters to this task."
         )
 
-    # Deferred imports prevent SparkSession creation at module-import time (SDP context).
+    # Deferred imports prevent SparkSession creation during module import.
     from pyspark.sql import SparkSession
     from pyspark.dbutils import DBUtils
 
@@ -134,7 +153,7 @@ def bootstrap_infrastructure() -> None:
         w.dbutils.fs.mkdirs(paths["json_landing_path"])
         w.dbutils.fs.mkdirs(paths["music_metadata_dir"])
     except Exception:
-        # Fallback if WorkspaceClient is not available
+        # Fallback for contexts where WorkspaceClient is unavailable.
         dbutils.fs.mkdirs(paths["json_landing_path"])
         dbutils.fs.mkdirs(paths["music_metadata_dir"])
 

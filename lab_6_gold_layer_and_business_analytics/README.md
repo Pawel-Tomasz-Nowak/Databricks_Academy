@@ -1,39 +1,30 @@
-# LAB 5 — Music Popularity Spike Detection
+# lab_6_gold_layer_and_business_analytics
 
-A Declarative Automation Bundle (DABs) project that ingests YouTube engagement
-signals, normalises them through a medallion pipeline (bronze → silver → gold),
-and exposes minute-level aggregate tables for trend analysis. Orchestration is
-handled by a three-task Lakeflow Job; the transformation pipeline runs as a
-Lakeflow Spark Declarative Pipeline (SDP) using the `pyspark.pipelines` API.
+This lab documents the gold layer and business analytics assets built on top of the music medallion pipeline. It keeps the bronze and silver ingestion flow, adds business-facing fact and dimension tables, and connects them to dashboard, alerting, and security assets used in Databricks SQL.
 
 ---
 
 ## Architecture
 
 ```text
-YouTube Data API v3
+YouTube Data API v3                     music_discography*.csv
+        │                                        │
+        ▼                                        ▼
+save_yt_stats_snapshot.py              bronze_music_metadata
         │
-        ▼  (Task 2: fetch_youtube_data)
-save_yt_stats_snapshot.py
-        │  writes timestamped JSON files
         ▼
-/Volumes/{catalog}/{schema}/landing_zone/yt_snapshots/
+bronze_music_stats
         │
-        │  Auto Loader (cloudFiles/json, schema evolution)
         ▼
-bronze_music_stats          ◄── music_discography.csv
-        │                             (static CSV, semicolon-delimited)
-        │  cast · deduplicate · DQ expectations
-        │  per-hour delta enrichment (window lag over video_id)
-        ▼
-silver_music_stats
-silver_music_metadata       ◄── current snapshot by video_id
-silver_music_metadata_history    (SCD Type 2 via apply_changes_from_snapshot)
-        │
-        │  minute-level groupBy aggregations
-        ▼
-gold_music_stats_by_author
-gold_music_stats_by_video
+silver_music_stats ───────────────► fact_music_stats
+silver_music_metadata ────────────► dim_music_metadata
+silver_music_metadata_history
+                                        │
+                                        ├──► gold_author_music_stats
+                                        ├──► gold_album_music_stats
+                                        ├──► Music Artist Pulse dashboard
+                                        ├──► volume_drop_alert
+                                        └──► BI/RLS and BI/CLS SQL views
 ```
 
 ---
@@ -41,29 +32,48 @@ gold_music_stats_by_video
 ## Project Structure
 
 ```text
-LAB 5 — Declarative Pipelines (Lakeflow)/
-├── databricks.yml                              # DABs bundle: variables, pipeline, job, dev/prod targets
-├── README.md                                   # This file
+lab_6_gold_layer_and_business_analytics/
+├── databricks.yml                              # Bundle definition for the Lakeflow pipeline and orchestration job
+├── README.md                                   # Lab-level documentation
+├── Daily Standups.txt                          # Sprint notes captured during the assignment
+├── BI/
+│   ├── Music Artist Pulse.lvdash.json          # Dashboard draft stored in the workspace folder
+│   ├── volume_drop_alert.dbalert.json          # SQL alert query for latest-batch volume checks
+│   ├── CLS/
+│   │   └── cls_config.sql                      # Column masking view over dim_music_metadata
+│   └── RLS/
+│       ├── priviliges_granting.sql             # Row filter function, secured view, and grants
+│       └── RLS_test.sql                        # Small validation query for the row filter
+├── screenshots/
+│   └── full_run_pipeline_graph.png             # Pipeline graph screenshot after a full run
 ├── src/
 │   ├── __init__.py
-│   ├── setup/
-│   │   ├── __init__.py
-│   │   └── music_pipeline_setup.py             # Shared config, path resolver, UC bootstrap
+│   ├── archive/
+│   │   └── aggregate_author_stats_by_minute.py # Older helper retained for reference
+│   ├── notebooks/
+│   │   ├── New Notebook 2026-08-21 21_47_59    # Empty exploratory notebook placeholder
+│   │   └── scratchpads/
+│   │       └── data_volumes_test.ipynb         # Ad hoc table and volume validation notebook
+│   ├── pipelines/
+│   │   ├── 01_bronze_ingestion.py              # Bronze ingestion from JSON snapshots and metadata CSV
+│   │   ├── 02_silver_cleaning.py               # Data quality rules, typing, and SCD-ready silver logic
+│   │   ├── 03_fact_video_metrics.py            # Video-grain fact table for downstream analytics
+│   │   ├── 03_gold_metadata.py                 # Gold dimension table used by BI assets
+│   │   └── 04_gold_aggregations.py             # Album- and artist-level gold rollups
 │   ├── producer/
 │   │   ├── __init__.py
-│   │   ├── fetch_yt_video_stats.py             # YouTube Data API v3 client (batch fetch, secret lookup)
-│   │   └── save_yt_stats_snapshot.py           # Job entry point: fetch → write JSON to volume
-│   ├── pipelines/
-│   │   ├── 01_bronze_ingestion.py              # @dp.table: streaming Auto Loader + static CSV
-│   │   ├── 02_silver_cleaning.py               # @dp.table + expectations + SCD2 CDC flow
-│   │   └── 03_gold_aggregations.py             # @dp.table: author and video minute aggregations
+│   │   ├── fetch_yt_video_stats.py             # YouTube Data API reader
+│   │   └── save_yt_stats_snapshot.py           # Snapshot writer for the landing volume
+│   ├── setup/
+│   │   ├── __init__.py
+│   │   └── music_pipeline_setup.py             # Shared paths, table names, and bootstrap logic
 │   └── transformations/
 │       ├── __init__.py
-│       ├── delta_per_hour_metrics.py            # compute_per_hour_deltas() — lag window function
-│       ├── aggregate_author_stats_by_minute.py  # aggregate_author_stats_by_minute()
-│       └── aggregate_video_stats_by_minute.py   # aggregate_video_stats_by_minute()
+│       ├── aggregate_stats.py                  # Shared gold aggregation helper for author and album views
+│       ├── aggregate_video_stats.py            # Column standardization for fact_music_stats
+│       └── delta_per_hour_metrics.py           # Velocity metrics derived from snapshot deltas
 └── tests/
-    └── test_tester.py                          # Placeholder; folder tracked by Git
+    └── test_tester.py                          # Placeholder test module
 ```
 
 ---
@@ -77,7 +87,7 @@ Defines the full project as a Declarative Automation Bundle.
 | Section | Contents |
 | --- | --- |
 | `variables` | `catalog_name`, `schema_name`, `landing_zone_name`, `existing_cluster_id`, `secret_scope_val`, `secret_key_val` |
-| `resources.pipelines.music_dlt_pipeline` | SDP pipeline (ADVANCED edition, CURRENT channel). Libraries: the three `src/pipelines/*.py` files. Cluster: `Standard_D4ds_v5`, 1 worker. Spark config injects all variables via `spark.conf`. |
+| `resources.pipelines.music_dlt_pipeline` | Lakeflow Spark Declarative Pipeline (ADVANCED edition, CURRENT channel). Libraries: `01_bronze_ingestion.py`, `02_silver_cleaning.py`, `03_fact_video_metrics.py`, `03_gold_metadata.py`, and `04_gold_aggregations.py`. Cluster: `Standard_D4ds_v5`, 1 worker. Spark config injects all variables via `spark.conf`. |
 | `resources.jobs.music_etl_orchestrator` | Three-task Lakeflow Job (see Execution Order below). |
 | `targets.dev` | Default target. `catalog_name=dbr_dev`, `pipelines_development=true`, triggers paused. |
 | `targets.prod` | `catalog_name=dbr_prod`, `pipelines_development=false`, triggers unpaused. |
@@ -165,42 +175,72 @@ reliable way to resolve the `src` package inside the SDP runtime, where
 
 ---
 
-### `src/pipelines/03_gold_aggregations.py` — Gold Layer
+### `src/pipelines/03_fact_video_metrics.py` — Fact Layer
 
-- `gold_author_stats_by_minute` — reads `silver_music_stats`, delegates to
-  `aggregate_author_stats_by_minute`. Produces `author`,
-  `_ingested_at_minutes`, `total_videos`, `total_views`, `total_likes`,
-  `total_comments`.
-- `gold_video_stats_by_minute` — reads `silver_music_stats`, delegates to
-  `aggregate_video_stats_by_minute`. Produces `author`, `video_title`,
-  `_ingested_at_minutes`, `total_views`, `total_likes`, `total_comments`.
+- Builds `fact_music_stats` from `silver_music_stats`.
+- Keeps one record per `video_id` and `_ingested_at` snapshot.
+- Standardises metric names to `total_views`, `total_likes`, and
+  `total_comments` so downstream gold aggregations share one schema.
+
+### `src/pipelines/03_gold_metadata.py` — Dimension Layer
+
+- Builds `dim_music_metadata` from the current silver metadata snapshot.
+- Keeps descriptive columns such as `author`, `title`, `album`, and
+  `album_release_date`.
+- Drops the raw `url` column before exposing the table to BI assets.
+
+### `src/pipelines/04_gold_aggregations.py` — Business Rollups
+
+- Builds `gold_author_music_stats` by joining `fact_music_stats` with
+  `dim_music_metadata` and aggregating by `author`.
+- Builds `gold_album_music_stats` with the same pattern at the `album` grain.
+- Reuses the shared `aggregate_stats()` helper so both outputs expose the same
+  statistical columns.
 
 ---
 
 ### `src/transformations/delta_per_hour_metrics.py` — Per-Hour Delta Enrichment
 
-`compute_per_hour_deltas(df)` — enriches the silver DataFrame with velocity
+`compute_per_hour_deltas(df)` enriches the silver stats stream with velocity
 columns for views, likes, and comments.
 
 1. Converts `_ingested_at` to fractional hours (`unix_timestamp / 3600`).
 2. Partitions by `video_id`, orders by `_ingested_at_hours`.
-3. Computes raw lag differences (`view_delta`, `like_delta`, `comment_delta`,
-   `hour_delta`) using `compute_lag_differences`.
-4. Divides each delta by `hour_delta` using `compute_safe_quotients` (null- and
-   near-zero-safe, rounded to 1 decimal place).
-5. Drops intermediate columns before returning.
+3. Computes lag-based differences for metrics and time.
+4. Divides each metric delta by `hour_delta` with near-zero-safe logic.
+5. Drops helper columns before returning the enriched DataFrame.
 
-### `src/transformations/aggregate_author_stats_by_minute.py`
+### `src/transformations/aggregate_stats.py`
 
-`aggregate_author_stats_by_minute(silver_df)` — truncates `_ingested_at` to
-minute precision, groups by `(author, _ingested_at_minutes)`, and aggregates
-`total_videos` (countDistinct), `total_views`, `total_likes`, `total_comments`.
+`aggregate_stats(silver_df, by="author")` groups fact-style metrics by a chosen
+business dimension and returns totals, min/max values, means, standard
+deviations, and coefficient-of-variation percentages for views, likes, and
+comments.
 
-### `src/transformations/aggregate_video_stats_by_minute.py`
+### `src/transformations/aggregate_video_stats.py`
 
-`aggregate_video_stats_by_minute(silver_df)` — same truncation strategy,
-groups by `(author, video_title, _ingested_at_minutes)`, and sums
-`total_views`, `total_likes`, `total_comments`.
+`aggregate_video_stats(silver_df)` prepares the video-level fact output. It does
+not bucket timestamps because collapsing multiple snapshots from the same minute
+would overstate the latest metric values.
+
+---
+
+## BI assets
+
+| Asset | Purpose |
+| --- | --- |
+| `fact_music_stats` | Video-grain fact table used as the main reporting source for snapshots of views, likes, and comments. |
+| `dim_music_metadata` | Gold dimension table with the descriptive metadata needed to label fact rows in BI queries. |
+| `gold_author_music_stats` | Artist-level rollup with totals and descriptive statistics across each ingestion snapshot. |
+| `gold_album_music_stats` | Album-level rollup with the same statistical profile used for artist analytics. |
+| `Music Artist Pulse` | Lakeview dashboard that joins `fact_music_stats` with `dim_music_metadata` to filter by artist, album, and time. |
+| `volume_drop_alert` | SQL alert that compares the row count in the latest `fact_music_stats` batch with the metadata row count in `dim_music_metadata`. |
+| `BI/RLS/priviliges_granting.sql` | Defines the `author_row_filter` function, builds the `rls_dim_music_metadata` view, and grants access to artist-specific groups. |
+| `BI/RLS/RLS_test.sql` | Simple validation query for checking the row filter behaviour. |
+| `BI/CLS/cls_config.sql` | Defines `mask_video_id()` and builds `cls_dim_music_metadata`, which masks `video_id` for non-admin users. |
+| `screenshots/full_run_pipeline_graph.png` | Screenshot of the full pipeline graph after a successful run. |
+| `src/notebooks/scratchpads/data_volumes_test.ipynb` | Small scratch notebook used to inspect table access during development. |
+| `src/notebooks/New Notebook 2026-08-21 21_47_59` | Empty notebook placeholder currently stored with the lab assets. |
 
 ---
 
@@ -248,8 +288,8 @@ The `music_etl_orchestrator` job runs three tasks in sequence:
    `src/producer/save_yt_stats_snapshot.py`. Calls the YouTube Data API and
    writes a timestamped JSON snapshot to the landing volume.
 3. **`run_dlt_pipeline`** (depends on `fetch_youtube_data`) — triggers the
-   `music_dlt_pipeline` SDP pipeline, which runs the full bronze → silver →
-   gold flow.
+   `music_dlt_pipeline` Lakeflow Spark Declarative Pipeline, which runs the full
+   bronze → silver → fact/dimension → gold flow.
 
 ---
 
@@ -275,14 +315,16 @@ databricks bundle run music_etl_orchestrator --target prod
 
 ---
 
-## Tables Created
+## Core Tables Created
 
 | Layer | Table | Type | Description |
 | --- | --- | --- | --- |
-| Bronze | `bronze_music_stats` | Streaming | Raw YouTube stat snapshots from Auto Loader |
-| Bronze | `bronze_music_metadata` | Batch | Music metadata dictionary from CSV |
-| Silver | `silver_music_stats` | Materialized view | Cleaned, typed, deduplicated stats + per-hour deltas |
-| Silver | `silver_music_metadata` | Materialized view | Current metadata snapshot with extracted video IDs |
-| Silver | `silver_music_metadata_history` | Streaming (SCD2) | Full history of metadata attribute changes |
-| Gold | `gold_music_stats_by_author` | Materialized view | Minute-level engagement totals per author |
-| Gold | `gold_music_stats_by_video` | Materialized view | Minute-level engagement totals per video |
+| Bronze | `bronze_music_stats` | Streaming | Raw YouTube stat snapshots loaded from the landing volume with Auto Loader. |
+| Bronze | `bronze_music_metadata` | Batch | Music metadata dictionary loaded from `music_discography*.csv`. |
+| Silver | `silver_music_stats` | Materialized view | Cleaned, typed, deduplicated stats enriched with per-hour deltas. |
+| Silver | `silver_music_metadata` | Materialized view | Current metadata snapshot with extracted `video_id` values. |
+| Silver | `silver_music_metadata_history` | Streaming (SCD2) | Historical metadata changes tracked with snapshot-based CDC. |
+| Gold | `fact_music_stats` | Materialized view | Video-level fact table used as the primary BI snapshot source. |
+| Gold | `dim_music_metadata` | Materialized view | Video metadata dimension used to label fact rows and secured views. |
+| Gold | `gold_author_music_stats` | Materialized view | Artist-level rollup with totals and descriptive statistics per snapshot. |
+| Gold | `gold_album_music_stats` | Materialized view | Album-level rollup with totals and descriptive statistics per snapshot. |

@@ -41,11 +41,8 @@ def run_reconciliation_metadata() -> None:
     print(f"Metadata counts: Bronze={bronze_count}, Silver={silver_clean_count}, Quarantine={silver_quarantine_count}")
 
     if bronze_count != (silver_clean_count + silver_quarantine_count):
-        print(
-            f"SILENT DATA LOSS DETECTED!\n"
-            f"Bronze ({bronze_count}) != Silver ({silver_clean_count}) + Quarantine ({silver_quarantine_count})"
-        )
-        sys.exit(1)
+        sys.exit(f"SILENT DATA LOSS DETECTED!\n"
+            f"Bronze ({bronze_count}) != Silver ({silver_clean_count}) + Quarantine ({silver_quarantine_count})")
 
 
 def run_reconciliation_gold_aggregates() -> None:
@@ -55,8 +52,7 @@ def run_reconciliation_gold_aggregates() -> None:
         author_df = spark.read.table(music_stats_tables["gold_author"])
         album_df = spark.read.table(music_stats_tables["gold_album"])
     except Exception as exc:
-        print(f"Error reading Gold tables: {exc}")
-        sys.exit(1)
+        sys.exit(f"Error reading Gold tables: {exc}")
 
     video_views = video_df.agg(F.sum("total_views")).first()[0] or 0
     author_views = author_df.agg(F.sum("total_views")).first()[0] or 0
@@ -65,13 +61,10 @@ def run_reconciliation_gold_aggregates() -> None:
     print(f"Views Sums: Fact={video_views}, Author={author_views}, Album={album_views}")
 
     if not (video_views == author_views == album_views):
-        print(
-            f"SILENT DATA LOSS DETECTED ACROSS GOLD AGGREGATES!\n"
+        sys.exit(f"SILENT DATA LOSS DETECTED ACROSS GOLD AGGREGATES!\n"
             f"Fact Table Views:   {video_views}\n"
             f"Author Views:       {author_views}\n"
-            f"Album Views:        {album_views}"
-        )
-        sys.exit(1)
+            f"Album Views:        {album_views}")
 
 
 if __name__ == "__main__":

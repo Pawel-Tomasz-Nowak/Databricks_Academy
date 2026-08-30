@@ -10,13 +10,12 @@ LICENSE
 .gitignore
 .git/
 .github/
-agent_skills/
-LAB 1 – Databricks Fundamentals & DEV Setup/
+lab_1_databricks_fundamentals_and_dev_setup/
 	Notebook.ipynb
 	alabama_sold_real_estate_intelligence_2026.csv
-	image_1783362421351.png
 	Dashboard - week 1.lvdash.json
-LAB 2 – Azure Services & Shared Lakehouse Setup/
+	image_1783362421351.png
+lab_2_azure_services_and_shared_lakehouse_setup/
 	Stage 1/
 		key_vault.png
 		storage_account.png
@@ -27,17 +26,16 @@ LAB 2 – Azure Services & Shared Lakehouse Setup/
 		creating schemas.sql
 		optional task.ipynb
 		silver_ingestion.ipynb
-LAB 3 — Streaming & Incremental Ingestion/
+lab_3_streaming_and_incremental_ingestion/
 	CloudFiles_AutoLoader.ipynb
 	EventHub_AutoLoader.ipynb
 	metallica_event_hubs.ipynb
 	optional_additions.ipynb
-LAB 4 — Silver Layer, Data Quality & Schema Evolution/
+lab_4_silver_layer_data_quality_and_schema_evolution/
 	notebooks/
 		Lab 4.ipynb
 		workflow_for_job.ipynb
 	src/
-		__init__.py
 		config.py
 		data_generators.py
 		data_cleaner.py
@@ -47,42 +45,35 @@ LAB 4 — Silver Layer, Data Quality & Schema Evolution/
 		cast_invalid_input_string_to_int.png
 		column_mapping_mode_required.png
 		delta_metadata_mismatch_extra_column.png
-		integer_overflow.png
-		schema_merge_incompatible_types.png
-		schema_mismatch_renamed_column.png
-		type_widening_narrowing.png
-	setup_imports.py
 	README.md
-LAB 5 — Declarative Pipelines (Lakeflow)/
+lab_5_declarative_pipelines_lakeflow/
 	databricks.yml
 	README.md
 	src/
-		__init__.py
 		setup/
-			__init__.py
-			music_pipeline_setup.py
 		producer/
-			__init__.py
-			fetch_yt_video_stats.py
-			save_yt_stats_snapshot.py
 		pipelines/
-			01_bronze_ingestion.py
-			02_silver_cleaning.py
-			03_gold_aggregations.py
 		transformations/
-			__init__.py
-			delta_per_hour_metrics.py
-			aggregate_author_stats_by_minute.py
-			aggregate_video_stats_by_minute.py
 	tests/
-		test_tester.py
+lab_6_gold_layer_and_business_analytics/
+	databricks.yml
+	README.md
+	BI/
+	screenshots/
+	src/
+	tests/
+lab_7_data_quality_testing_and_unit_tests/
+	README.md
+	BI/
+	src/
+	tests/
 ```
 
 ## What is in the repository
 
 The repository is split into lab folders rather than one large notebook collection. That keeps the material for each topic together and makes it easier to follow the course week by week.
 
-### LAB 1 – Databricks Fundamentals & DEV Setup
+### lab_1_databricks_fundamentals_and_dev_setup
 
 This lab covers the basics of the Databricks environment and the development setup. The folder currently contains:
 
@@ -91,7 +82,7 @@ This lab covers the basics of the Databricks environment and the development set
 - `Dashboard - week 1.lvdash.json`, a dashboard export for the first week
 - `image_1783362421351.png`, a supporting image file
 
-### LAB 2 – Azure Services & Shared Lakehouse Setup
+### lab_2_azure_services_and_shared_lakehouse_setup
 
 This lab is divided into stages.
 
@@ -113,7 +104,7 @@ Stage 2 contains the notebooks for the lakehouse and ingestion tasks:
 - `Service Principal connection.ipynb`
 - `silver_ingestion.ipynb`
 
-### LAB 3 — Streaming & Incremental Ingestion
+### lab_3_streaming_and_incremental_ingestion
 
 This lab focuses on streaming and incremental ingestion patterns using Databricks AutoLoader, Event Hubs, and related streaming sources. The folder contains:
 
@@ -122,7 +113,7 @@ This lab focuses on streaming and incremental ingestion patterns using Databrick
 - `metallica_event_hubs.ipynb` — an example notebook used in the Event Hubs exercises
 - `optional_additions.ipynb` — additional streaming patterns and examples
 
-### LAB 4 — Silver Layer, Data Quality & Schema Evolution ✅
+### lab_4_silver_layer_data_quality_and_schema_evolution ✅
 
 This lab demonstrates building a production-grade Silver Layer pipeline with data quality enforcement, schema evolution, and Slowly Changing Dimensions (SCD) Type I and Type II patterns. The lab showcases modular architecture and clean code practices.
 
@@ -151,7 +142,7 @@ This lab demonstrates building a production-grade Silver Layer pipeline with dat
 
 **Status:** ✅ Completed with code review, documentation, and clean code improvements.
 
-### LAB 5 — Declarative Pipelines (Lakeflow) ✅
+### lab_5_declarative_pipelines_lakeflow ✅
 
 This lab builds an end-to-end music analytics pipeline using Databricks Lakeflow Spark Declarative Pipelines and Declarative Automation Bundles (DABs). The pipeline ingests YouTube video engagement snapshots via the YouTube Data API v3, processes them through a bronze–silver–gold medallion architecture, and exposes minute-level aggregate tables for trend analysis.
 

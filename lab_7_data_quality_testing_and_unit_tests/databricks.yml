@@ -117,6 +117,11 @@ resources:
         - task_key: reconciliation_gate
           depends_on:
             - task_key: run_dlt_pipeline
+              
+          email_notifications: # When the job fails (due to bad quality data, a notification is sent)
+            on_failure:
+              - "my_email@2137.pl"
+        
           existing_cluster_id: ${var.existing_cluster_id}
           spark_python_task:
             python_file: src/quality/reconciliation_gate.py

@@ -1,22 +1,20 @@
-"""Gold layer aggregations for music analytics pipeline.
+"""Build artist- and album-level gold aggregates from the video fact table.
 
-The value of the gold layer is not the raw row count; it is the business-ready
-view over time. Minute-level aggregation makes the trend readable without
-loading the full streaming history back into a reporting tool.
-Implemented using Databricks Lakeflow (pyspark.pipelines).
+These views turn per-video metric snapshots into business-facing rollups that
+are easier to consume in dashboards and alerting logic.
 """
 import os
 import sys
 
 from pyspark.sql import SparkSession
 
-# The SDP runtime evaluates pipeline files dynamically — __file__ is not set.
-# bundle.root is injected via spark.conf by the pipeline cluster configuration.
+# Lakeflow Spark Declarative Pipelines evaluates files dynamically, so __file__
+# is not available. The bundle root is injected through spark.conf instead.
 spark = SparkSession.getActiveSession() or SparkSession.builder.getOrCreate()
 bundle_root = spark.conf.get("bundle.root", "")
 possible_roots = [
-    bundle_root, 
-    os.getcwd(), 
+    bundle_root,
+    os.getcwd(),
     os.path.abspath(os.path.join(os.getcwd(), "..", ".."))
 ]
 
@@ -26,25 +24,23 @@ for path in possible_roots:
             sys.path.insert(0, path)
         break
 
-
-
 from pyspark import pipelines as dp
 
 from src.setup.music_pipeline_setup import music_stats_tables, music_metadata_tables
 from src.transformations.aggregate_stats import aggregate_stats
-# docs to be updated - we assume default level od granularity imposed by datetime.now()
+
 
 @dp.materialized_view(
     name=music_stats_tables["gold_author"],
-    comment="Business view summarising total engagement metrics for authors across minute-level snapshots.",
+    comment="Business view summarising engagement metrics per artist across fact table snapshots.",
     table_properties={"quality": "gold", "table_type": "fact"},
 )
 def gold_author_stats_by_minute():
-    """Joins fact and dim materialized views and aggregates by author.
+    """Join fact and dimension data, then aggregate metrics at the artist grain.
 
-    Both source tables are materialized views — mixing readStream with
-    spark.read in a single function is not allowed in SDP, so both reads
-    use spark.read.table.
+    Both source objects are materialized views, so the function reads them with
+    ``spark.read.table`` and then enriches each fact row with the artist name
+    before applying the shared aggregation helper.
     """
     facts_df = spark.read.table(music_stats_tables["fact"])
     dim_df = spark.read.table(music_metadata_tables["gold"]).select("video_id", "author")
@@ -55,14 +51,13 @@ def gold_author_stats_by_minute():
 
 @dp.materialized_view(
     name=music_stats_tables["gold_album"],
-    comment="Business view summarising total engagement metrics for albums across snapshots.",
+    comment="Business view summarising engagement metrics per album across fact table snapshots.",
     table_properties={"quality": "gold", "table_type": "fact"},
 )
 def gold_album_stats_by_minute():
-    """Joins fact and dim materialized views and aggregates by album."""
+    """Join fact and dimension data, then aggregate metrics at the album grain."""
     facts_df = spark.read.table(music_stats_tables["fact"])
     dim_df = spark.read.table(music_metadata_tables["gold"]).select("video_id", "album")
 
     ext_facts_df = facts_df.join(dim_df, on="video_id", how="left")
-
     return aggregate_stats(ext_facts_df, by="album")

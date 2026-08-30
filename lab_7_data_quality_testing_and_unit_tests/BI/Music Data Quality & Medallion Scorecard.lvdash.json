@@ -1,0 +1,474 @@
+{
+  "datasets": [
+    {
+      "name": "quality_summary",
+      "displayName": "Quality Summary",
+      "queryLines": [
+        "WITH clean AS (\n",
+        "  SELECT\n",
+        "    COUNT(*) AS clean_count\n",
+        "  FROM\n",
+        "    silver_music_metadata\n",
+        "),\n",
+        "quarantine AS (\n",
+        "  SELECT\n",
+        "    COUNT(*) AS quarantine_count\n",
+        "  FROM\n",
+        "    silver_music_quarantine\n",
+        ")\n",
+        "SELECT\n",
+        "  ROUND(\n",
+        "    CASE\n",
+        "      WHEN clean.clean_count + quarantine.quarantine_count = 0 THEN 0.0\n",
+        "      ELSE 100.0 * clean.clean_count / (clean.clean_count + quarantine.quarantine_count)\n",
+        "    END,\n",
+        "    2\n",
+        "  ) AS pass_rate_pct,\n",
+        "  clean.clean_count + quarantine.quarantine_count AS total_ingested,\n",
+        "  quarantine.quarantine_count AS quarantine_count,\n",
+        "  CASE\n",
+        "    WHEN quarantine.quarantine_count = 0 THEN 'HEALTHY'\n",
+        "    WHEN\n",
+        "      ROUND(\n",
+        "        CASE\n",
+        "          WHEN clean.clean_count + quarantine.quarantine_count = 0 THEN 0.0\n",
+        "          ELSE 100.0 * clean.clean_count / (clean.clean_count + quarantine.quarantine_count)\n",
+        "        END,\n",
+        "        2\n",
+        "      ) >= 95\n",
+        "    THEN\n",
+        "      'WARNING'\n",
+        "    ELSE 'CRITICAL'\n",
+        "  END AS pipeline_status\n",
+        "FROM\n",
+        "  clean CROSS JOIN quarantine"
+      ],
+      "catalog": "dbr_dev",
+      "schema": "music_analytics"
+    },
+    {
+      "name": "medallion_flow",
+      "displayName": "Medallion Reconciliation Flow",
+      "queryLines": [
+        "SELECT\n",
+        "  '1. Bronze Raw Keys' AS layer_name,\n",
+        "  COUNT(DISTINCT COALESCE(url, 'missing_url')) AS record_count -- We want to include missing values in the count\n",
+        "FROM\n",
+        "  bronze_music_metadata\n",
+        "UNION ALL\n",
+        "SELECT\n",
+        "  '2. Silver Clean' AS layer_name,\n",
+        "  COUNT(*) AS record_count\n",
+        "FROM\n",
+        "  silver_music_metadata\n",
+        "UNION ALL\n",
+        "SELECT\n",
+        "  '2. Silver Quarantine' AS layer_name,\n",
+        "  COUNT(*) AS record_count\n",
+        "FROM\n",
+        "  silver_music_quarantine\n",
+        "UNION ALL\n",
+        "SELECT\n",
+        "  '3. Gold Dimension' AS layer_name,\n",
+        "  COUNT(*) AS record_count\n",
+        "FROM\n",
+        "  dim_music_metadata"
+      ],
+      "catalog": "dbr_dev",
+      "schema": "music_analytics"
+    },
+    {
+      "name": "quarantine_inspection",
+      "displayName": "Quarantine Inspection",
+      "queryLines": [
+        "SELECT\n",
+        "  url,\n",
+        "  author,\n",
+        "  album,\n",
+        "  title,\n",
+        "  _ingested_at\n",
+        "FROM\n",
+        "  silver_music_quarantine\n",
+        "ORDER BY\n",
+        "  _ingested_at DESC"
+      ],
+      "catalog": "dbr_dev",
+      "schema": "music_analytics"
+    }
+  ],
+  "pages": [
+    {
+      "name": "5e21d593",
+      "displayName": "main",
+      "layout": [
+        {
+          "widget": {
+            "name": "top_kpi_summary_header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Top KPI Summary"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "pass_rate_pct",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "quality_summary",
+                  "fields": [
+                    {
+                      "name": "pass_rate_pct",
+                      "expression": "`pass_rate_pct`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Pass Rate %",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "pass_rate_pct",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "total_ingested",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "quality_summary",
+                  "fields": [
+                    {
+                      "name": "total_ingested",
+                      "expression": "`total_ingested`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Total Ingested",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_ingested",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 1,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "quarantine_count",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "quality_summary",
+                  "fields": [
+                    {
+                      "name": "quarantine_count",
+                      "expression": "`quarantine_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Quarantine Count",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "quarantine_count",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 1,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "pipeline_status",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "quality_summary",
+                  "fields": [
+                    {
+                      "name": "pipeline_status",
+                      "expression": "`pipeline_status`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Pipeline Status"
+              },
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "pipeline_status"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 1,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "medallion_flow_header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Medallion Reconciliation Flow"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "medallion_flow_chart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "medallion_flow",
+                  "fields": [
+                    {
+                      "name": "layer_name",
+                      "expression": "`layer_name`"
+                    },
+                    {
+                      "name": "sum(record_count)",
+                      "expression": "SUM(`record_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Medallion Reconciliation Flow"
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "layer_name",
+                  "displayName": "layer_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(record_count)",
+                  "displayName": "record_count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "layer_name",
+                  "displayName": "layer_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 12,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "quarantine_inspection_header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Quarantine Inspection"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "quarantine_inspection_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "quarantine_inspection",
+                  "fields": [
+                    {
+                      "name": "url",
+                      "expression": "`url`"
+                    },
+                    {
+                      "name": "title",
+                      "expression": "`title`"
+                    },
+                    {
+                      "name": "author",
+                      "expression": "`author`"
+                    },
+                    {
+                      "name": "_ingested_at",
+                      "expression": "`_ingested_at`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Quarantine Inspection"
+              },
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "url"
+                  },
+                  {
+                    "fieldName": "title"
+                  },
+                  {
+                    "fieldName": "author"
+                  },
+                  {
+                    "fieldName": "_ingested_at"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 11,
+            "width": 12,
+            "height": 6
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}
