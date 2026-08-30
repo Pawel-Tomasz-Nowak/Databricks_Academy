@@ -5,27 +5,7 @@ import pytest
 from path_resolver import _init_bundle_path
 _init_bundle_path()
 
-
-catalog = "dbr_dev"
-schema = "music_analytics"
-
-# Keep the test table mapping aligned with the runtime setup module so the
-# reconciliation tests validate the same physical assets as the job task.
-music_metadata_tables = {
-    "bronze": f"{catalog}.{schema}.bronze_music_metadata",
-    "silver": f"{catalog}.{schema}.silver_music_metadata",
-    "silver_history": f"{catalog}.{schema}.silver_music_metadata_history",
-    "silver_quarantine": f"{catalog}.{schema}.silver_music_quarantine",
-    "gold": f"{catalog}.{schema}.dim_music_metadata",
-}
-
-music_stats_table = {
-    "bronze": f"{catalog}.{schema}.bronze_music_stats",
-    "silver": f"{catalog}.{schema}.silver_music_stats",
-    "fact": f"{catalog}.{schema}.fact_music_stats",  # Video-level fact snapshot.
-    "gold_album": f"{catalog}.{schema}.gold_album_music_stats",  # Album-level rollup.
-    "gold_author": f"{catalog}.{schema}.gold_author_music_stats"  # Artist-level rollup.
-}
+from src.setup.music_pipeline_setup import music_metadata_tables, music_stats_table
 
 
 def test_reconciliation_bronze_to_silver_music_metadata(spark: SparkSession):

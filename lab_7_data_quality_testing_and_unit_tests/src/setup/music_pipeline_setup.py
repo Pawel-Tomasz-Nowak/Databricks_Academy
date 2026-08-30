@@ -54,6 +54,7 @@ def get_pipeline_paths(catalog: str, schema: str, volume: str) -> dict:
         "music_stats_tables": {
             "bronze": f"{catalog}.{schema}.bronze_music_stats",
             "silver": f"{catalog}.{schema}.silver_music_stats",
+            "silver_quarantine": f"{catalog}.{schema}.silver_music_stats_quarantine",
             "fact": f"{catalog}.{schema}.fact_music_stats",  # Video-level fact snapshot.
             "gold_album": f"{catalog}.{schema}.gold_album_music_stats",  # Album-level aggregate.
             "gold_author": f"{catalog}.{schema}.gold_author_music_stats"  # Artist-level aggregate.

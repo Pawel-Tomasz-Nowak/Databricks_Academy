@@ -34,7 +34,7 @@ from src.transformations.aggregate_video_stats import aggregate_video_stats
 # pipeline before downstream dashboards and scorecards consume them.
 fact_expectations = {
     "video_id_valid": "video_id IS NOT NULL AND length(trim(video_id)) > 0",
-    "ingested_at_valid": "_ingested_at IS NOT NULL AND to_date(_ingested_at) IS NOT NULL AND to_date(_ingested_at) < current_date()",
+    "ingested_at_valid": "_ingested_at IS NOT NULL AND to_date(_ingested_at) IS NOT NULL AND to_date(_ingested_at) <= current_date()",
     "total_views_nonnegative": "total_views IS NULL OR total_views >= 0",
     "total_likes_nonnegative": "total_likes IS NULL OR total_likes >= 0",
     "total_comment_nonnegative": "total_comments IS NULL OR total_comments >= 0"

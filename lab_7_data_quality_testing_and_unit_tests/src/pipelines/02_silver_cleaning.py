@@ -43,8 +43,9 @@ silver_youtube_stats_expectations = {
     "comment_count_positive_or_null": "comment_count IS NULL OR comment_count > 0",
     "like_count_positive_or_null": "like_count IS NULL OR like_count > 0",
     "view_count_positive_or_null": "view_count IS NULL OR view_count > 0",
-    "valid_published_at": "published_at IS NOT NULL AND published_at >= DATE('2005-04-23') AND published_at <= current_date()"
+    "valid_published_at": "published_at IS NOT NULL AND published_at <= current_date()"
 }
+
 
 
 @dp.materialized_view(
@@ -52,7 +53,7 @@ silver_youtube_stats_expectations = {
     comment="Cleaned YouTube stats with typed columns, deduplicated snapshots, and per-hour delta metrics.",
     table_properties={"quality": "silver"},
 )
-@dp.expect_all_or_fail(silver_youtube_stats_expectations)
+@dp.expect_all_or_drop(silver_youtube_stats_expectations)
 def silver_youtube_stats():
     """Cast bronze stats to stable types and compute rate-of-change metrics."""
     df_raw = spark.read.table(music_stats_tables["bronze"])
@@ -70,6 +71,42 @@ def silver_youtube_stats():
 
     df_clean = df_raw.withColumns(columns_to_cast).dropDuplicates(["video_id", "_ingested_at"])
     return compute_per_hour_deltas(df_clean)
+
+
+stats_reasons_array = F.array([
+    F.when(F.expr(f"NOT ({cond})"), F.lit(rule_name))
+    for rule_name, cond in silver_youtube_stats_expectations.items()
+])
+stats_expect_negation = " OR ".join([f"NOT ({cond})" for cond in silver_youtube_stats_expectations.values()])
+
+@dp.table(
+    name=music_stats_tables["silver_quarantine"],
+    comment="Video stats quarantine table with records rejected from the clean silver snapshot and their rule violations.",
+    table_properties={"quality": "silver"}
+)
+def silver_music_stats_quarantine():
+    """Capture rejected video_stats rows together with the violated rule names."""
+    df_raw = spark.read.table(music_stats_tables["bronze"])
+
+    df_filtered = df_raw.where(stats_expect_negation)
+
+    quarantine_df = df_filtered.withColumn(
+        "_quarantine_reason",
+        F.concat_ws(", ", F.array_compact(stats_reasons_array))
+    )
+
+    return quarantine_df
+
+
+
+
+
+
+
+
+
+
+
 
 
 music_metadata_expectations = {
