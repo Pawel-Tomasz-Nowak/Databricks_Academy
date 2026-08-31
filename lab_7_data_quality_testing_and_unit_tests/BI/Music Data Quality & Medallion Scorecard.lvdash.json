@@ -86,7 +86,8 @@
         "  author,\n",
         "  album,\n",
         "  title,\n",
-        "  _ingested_at\n",
+        "  _ingested_at,\n",
+        "  `_quarantine_reason` AS invalid_reason\n",
         "FROM\n",
         "  silver_music_quarantine\n",
         "ORDER BY\n",
@@ -419,6 +420,10 @@
                     {
                       "name": "_ingested_at",
                       "expression": "`_ingested_at`"
+                    },
+                    {
+                      "name": "invalid_reason",
+                      "expression": "`invalid_reason`"
                     }
                   ],
                   "disaggregated": true
@@ -428,7 +433,10 @@
             "spec": {
               "frame": {
                 "showTitle": true,
-                "title": "Quarantine Inspection"
+                "title": {
+                  "value": "Quarantine Inspection",
+                  "fields": []
+                }
               },
               "version": 2,
               "widgetType": "table",
@@ -445,6 +453,9 @@
                   },
                   {
                     "fieldName": "_ingested_at"
+                  },
+                  {
+                    "fieldName": "invalid_reason"
                   }
                 ]
               },
@@ -463,6 +474,11 @@
       ],
       "pageType": "PAGE_TYPE_CANVAS",
       "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "3aa8a66c",
+      "displayName": "Untitled page",
+      "pageType": "PAGE_TYPE_CANVAS"
     }
   ],
   "uiSettings": {
