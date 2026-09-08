@@ -5,8 +5,29 @@ import pytest
 from path_resolver import _init_bundle_path
 _init_bundle_path()
 
-from src.setup.music_pipeline_setup import music_metadata_tables, music_stats_table
+# from src.setup.music_pipeline_setup import music_metadata_tables, music_stats_tables
 
+
+
+catalog = "dbr_dev"
+schema = "music_analytics"
+
+music_metadata_tables={
+    "bronze": f"{catalog}.{schema}.bronze_music_metadata",
+    "silver": f"{catalog}.{schema}.silver_music_metadata",
+    "silver_history": f"{catalog}.{schema}.silver_music_metadata_history",
+    "silver_quarantine": f"{catalog}.{schema}.silver_music_quarantine",
+    "gold": f"{catalog}.{schema}.dim_music_metadata"
+}
+
+music_stats_tables= {
+"bronze": f"{catalog}.{schema}.bronze_music_stats",
+"silver": f"{catalog}.{schema}.silver_music_stats",
+"silver_quarantine": f"{catalog}.{schema}.silver_music_stats_quarantine",
+"fact": f"{catalog}.{schema}.fact_music_stats",  # Video-level fact snapshot.
+"gold_album": f"{catalog}.{schema}.gold_album_music_stats",  # Album-level aggregate.
+"gold_author": f"{catalog}.{schema}.gold_author_music_stats"  # Artist-level aggregate.
+}  # Grain narrows from video snapshot to album rollup to artist rollup.
 
 def test_reconciliation_bronze_to_silver_music_metadata(spark: SparkSession):
     try:
@@ -30,9 +51,9 @@ def test_reconciliation_bronze_to_silver_music_metadata(spark: SparkSession):
 
 def test_reconciliation_total_views_album_vs_author_songs(spark: SparkSession):
     try:
-        video_df = spark.read.table(music_stats_table["fact"])
-        author_df = spark.read.table(music_stats_table["gold_author"])
-        album_df = spark.read.table(music_stats_table["gold_album"])
+        video_df = spark.read.table(music_stats_tables["fact"])
+        author_df = spark.read.table(music_stats_tables["gold_author"])
+        album_df = spark.read.table(music_stats_tables["gold_album"])
     except Exception as exc:
         pytest.fail(f"Could not read one of the Gold tables: {exc}")
 
