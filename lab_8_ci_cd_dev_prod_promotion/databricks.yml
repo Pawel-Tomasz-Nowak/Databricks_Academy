@@ -1,0 +1,49 @@
+bundle:
+  name: music_popularity_spike_detection
+
+include:
+  - resources/*.yml
+  
+variables:
+  catalog_name:
+    default: "dbr_dev"
+  schema_name:
+    default: "music_analytics"
+  landing_zone_name:
+    default: "landing_zone"
+  existing_cluster_id:
+    default: "0702-132442-toro5spu"
+  secret_scope_val:
+    default: "pawelnowak2004pri219_scope"
+  secret_key_val:
+    default: "pawelnowak-youtube-api"
+
+# ------------------------------------------------------------------------------
+# TARGETS (DEV & PROD PRESETS)
+# ------------------------------------------------------------------------------
+targets:
+  dev:
+    default: true
+    workspace:
+      host: https://adb-7405604503619901.1.azuredatabricks.net
+    presets:
+      name_prefix: ''
+      pipelines_development: true
+      trigger_pause_status: "PAUSED"
+    variables:
+      catalog_name: "dbr_dev"
+      schema_name: "music_analytics"
+      landing_zone_name: "landing_zone"
+      existing_cluster_id: "0702-132442-toro5spu"
+
+  prod:
+    workspace:
+      host: https://adb-7405604503619901.1.azuredatabricks.net
+    presets:
+      name_prefix: ''
+      pipelines_development: false
+      trigger_pause_status: "UNPAUSED"
+    variables:
+      catalog_name: "dbr_prod"
+      schema_name: "music_analytics"
+      landing_zone_name: "landing_zone"
