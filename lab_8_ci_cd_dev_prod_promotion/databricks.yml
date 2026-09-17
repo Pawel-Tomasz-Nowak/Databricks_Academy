@@ -44,6 +44,7 @@ targets:
       pipelines_development: false
       trigger_pause_status: "UNPAUSED"
     variables:
-      catalog_name: "dbr_prod"
-      schema_name: "music_analytics"
-      landing_zone_name: "landing_zone"
+      catalog_name: "dbr_dev"
+      schema_name: "music_analytics_prod"
+      landing_zone_name: "landing_zone_prod"
+      existing_cluster_id: "0702-132442-toro5spu"
