@@ -1,14 +1,14 @@
-"""Define shared configuration and bootstrap helpers for the lab_7 pipeline.
+"""Define shared configuration and bootstrap helpers for the music analytics pipeline.
 
 This module is imported by both Lakeflow Spark Declarative Pipeline files and
 job-style Python tasks. It keeps Spark-dependent work delayed until runtime so
 imports remain safe in pipeline compilation contexts.
 """
 import argparse
-import os
-import sys
 import glob
+import os
 import shutil
+import sys
 
 from pyspark.sql.types import DateType, StringType, StructField, StructType
 
@@ -58,10 +58,10 @@ def get_pipeline_paths(catalog: str, schema: str, volume: str) -> dict:
             "bronze": f"{catalog}.{schema}.bronze_music_stats",
             "silver": f"{catalog}.{schema}.silver_music_stats",
             "silver_quarantine": f"{catalog}.{schema}.silver_music_stats_quarantine",
-            "fact": f"{catalog}.{schema}.fact_music_stats",  # Video-level fact snapshot.
-            "gold_album": f"{catalog}.{schema}.gold_album_music_stats",  # Album-level aggregate.
-            "gold_author": f"{catalog}.{schema}.gold_author_music_stats"  # Artist-level aggregate.
-        }  # Grain narrows from video snapshot to album rollup to artist rollup.
+            "fact": f"{catalog}.{schema}.fact_music_stats",
+            "gold_album": f"{catalog}.{schema}.gold_album_music_stats",
+            "gold_author": f"{catalog}.{schema}.gold_author_music_stats",
+        },
     }
 
 
@@ -115,13 +115,12 @@ else:
 
 
 # ------------------------------------------------------------------------------
-# 4. BOOTSTRAP LOGIC (Executed only when run directly as a script)
+# 4. BOOTSTRAP LOGIC
 # ------------------------------------------------------------------------------
 def bootstrap_infrastructure() -> None:
-    """Create the catalog, schema, volume, and landing directories.
+    """Create the catalog, schema, volume, and landing directories via SQL.
 
-    The task is designed to run before the ingestion and pipeline tasks so the
-    landing zone and metadata folder always exist before new files are written.
+    Must run before any filesystem operations against /Volumes paths.
     """
     if not all([catalog_name, music_schema, volume_name]):
         raise ValueError(
@@ -129,7 +128,6 @@ def bootstrap_infrastructure() -> None:
             "Ensure databricks.yml passes CLI parameters to this task."
         )
 
-    # Deferred imports prevent SparkSession creation during module import.
     from pyspark.sql import SparkSession
     from pyspark.dbutils import DBUtils
 
@@ -138,13 +136,15 @@ def bootstrap_infrastructure() -> None:
 
     print(f"[BOOTSTRAP] Setting up infrastructure for: {catalog_name}.{music_schema}.{volume_name}")
 
+    # Check and create catalog if needed (with permission guard)
     catalogs = [row[0] for row in spark.sql(f"SHOW CATALOGS LIKE '{catalog_name}'").collect()]
     if not catalogs:
         try:
             spark.sql(f"CREATE CATALOG IF NOT EXISTS {catalog_name}")
         except Exception as exc:
-            raise RuntimeError(f"Permission denied when creating catalog '{catalog_name}'.") from exc
+            print(f"[BOOTSTRAP] Warning: Could not create catalog '{catalog_name}'. Proceeding assuming it exists: {exc}")
 
+    # Register schema and volume in Unity Catalog before touching /Volumes via filesystem APIs
     spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog_name}.{music_schema}")
     spark.sql(f"CREATE VOLUME IF NOT EXISTS {catalog_name}.{music_schema}.{volume_name}")
 
@@ -154,18 +154,20 @@ def bootstrap_infrastructure() -> None:
         from databricks.sdk import WorkspaceClient
         w = WorkspaceClient()
         w.dbutils.fs.mkdirs(paths["json_landing_path"])
-        # w.dbutils.fs.mkdirs(paths["music_metadata_dir"])
     except Exception:
-        # Fallback for contexts where WorkspaceClient is unavailable.
         dbutils.fs.mkdirs(paths["json_landing_path"])
-        # dbutils.fs.mkdirs(paths["music_metadata_dir"])
 
     print("[BOOTSTRAP] Infrastructure successfully configured.")
 
+
 # ------------------------------------------------------------------------------
-# 5. PREPARING METADATA LANDING ZONE
+# 5. METADATA SEEDING LOGIC
 # ------------------------------------------------------------------------------
 def get_bundle_root() -> str:
+    """Resolve project root directory across both Job tasks and DBR interactive kernels.
+
+    Bypasses the missing __file__ runtime limitation.
+    """
     candidate_path = None
     if len(sys.argv) > 0 and sys.argv[0] and sys.argv[0].endswith(".py"):
         candidate_path = os.path.abspath(sys.argv[0])
@@ -178,33 +180,45 @@ def get_bundle_root() -> str:
     cwd = os.getcwd()
     if "/files" in cwd:
         return cwd.split("/files")[0] + "/files"
-        
+
     return os.path.abspath(os.path.join(cwd, "..", ".."))
 
-# Bundle path resolving
-bundle_root = get_bundle_root()
-seed_dir = os.path.join(bundle_root, "data", "seed")
 
-# Make sure the metadata directory exists
-os.makedirs(music_metadata_dir, exist_ok=True)
+def seed_metadata_landing_zone() -> None:
+    """Idempotently copy reference CSV seed files into the Unity Catalog Volume."""
+    bundle_root = get_bundle_root()
+    seed_dir = os.path.join(bundle_root, "data", "seed")
 
-seed_files_pattern = os.path.join(seed_dir, music_metadata_file)
-found_seed_files = glob.glob(seed_files_pattern)
+    print(f"[SEED] Resolved bundle root: {bundle_root}")
+    print(f"[SEED] Looking for seed CSV files in: {seed_dir}")
+    print(f"[SEED] Destination volume directory: {music_metadata_dir}")
 
-if not found_seed_files:
-    print(f"Warning: Did not found any files matching {seed_files_pattern}")
-else:
+    # Volume must already exist before creating directories inside it
+    os.makedirs(music_metadata_dir, exist_ok=True)
+
+    # Use pattern filename extracted from music_metadata_file
+    pattern_name = os.path.basename(music_metadata_file) if music_metadata_file else "music_discography*.csv"
+    seed_files_pattern = os.path.join(seed_dir, pattern_name)
+    found_seed_files = glob.glob(seed_files_pattern)
+
+    if not found_seed_files:
+        print(f"[SEED] Warning: No files found matching pattern: {seed_files_pattern}")
+        return
+
     for source_path in found_seed_files:
         file_name = os.path.basename(source_path)
         target_path = os.path.join(music_metadata_dir, file_name)
-        
-        # Copy only missing values to ensure idempotency
+
         if not os.path.exists(target_path):
             shutil.copyfile(source_path, target_path)
-            print(f"Copied seed: {file_name} -> {target_path}")
+            print(f"[SEED] Copied: {file_name} -> {target_path}")
+        else:
+            print(f"[SEED] Already exists, skipping: {file_name}")
+
 
 # ------------------------------------------------------------------------------
 # 6. ENTRY POINT FOR TASK 1 (CLI Execution)
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
     bootstrap_infrastructure()
+    seed_metadata_landing_zone()
