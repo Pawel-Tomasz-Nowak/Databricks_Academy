@@ -1,17 +1,30 @@
 import pytest
-from databricks.connect import DatabricksSession
-from pyspark.sql import SparkSession
+
+# ------------------------------------------------------------------------------
+# SHARED PYTEST FIXTURES (DATABRICKS CONNECT & LOCAL PYSPARK FALLBACK)
+# ------------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="session")
-def spark() -> SparkSession:
-    """Provide a shared Databricks Connect Spark session for pytest runs.
+def spark():
+  """Provides a Spark session for running unit tests.
 
-    The tests target the same cluster-backed environment as the lab assets so
-    transformation logic can be validated against the Databricks runtime.
-    """
+  Attempts to connect via Databricks Connect first (for local IDE development).
+  Falls back to a lightweight local PySpark session for headless CI pipelines.
+  """
+  try:
+    from databricks.connect import DatabricksSession
+
+    # Remote session execution against an active Databricks cluster
+    return DatabricksSession.builder.getOrCreate()
+  except (ImportError, Exception):
+    from pyspark.sql import SparkSession
+
+    # Headless local execution for fast CI execution without cluster dependencies
     return (
-        DatabricksSession.builder
-        .clusterId("0702-132442-toro5spu")
+        SparkSession.builder.master("local[1]")
+        .appName("Lab8-UnitTests")
+        .config("spark.sql.shuffle.partitions", "1")
+        .config("spark.default.parallelism", "1")
         .getOrCreate()
     )
