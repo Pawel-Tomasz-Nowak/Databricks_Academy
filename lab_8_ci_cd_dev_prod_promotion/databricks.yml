@@ -2,7 +2,7 @@ bundle:
   name: music_popularity_spike_detection
 
 include:
-  - resources/*.yml
+  - resources/jobs_dlt.yml
   
 variables:
   catalog_name:

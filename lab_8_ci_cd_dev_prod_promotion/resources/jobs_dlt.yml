@@ -25,15 +25,15 @@ resources:
 
       libraries:
         - file:
-            path: src/pipelines/01_bronze_ingestion.py
+            path: ../src/pipelines/01_bronze_ingestion.py
         - file:
-            path: src/pipelines/02_silver_cleaning.py
+            path: ../src/pipelines/02_silver_cleaning.py
         - file:
-            path: src/pipelines/03_fact_video_metrics.py
+            path: ../src/pipelines/03_fact_video_metrics.py
         - file:
-            path: src/pipelines/03_gold_metadata.py
+            path: ../src/pipelines/03_gold_metadata.py
         - file:
-            path: src/pipelines/04_gold_aggregations.py
+            path: ../src/pipelines/04_gold_aggregations.py
 
       clusters:
         - label: default
@@ -57,7 +57,7 @@ resources:
         - task_key: setup_environment
           existing_cluster_id: ${var.existing_cluster_id}
           spark_python_task:
-            python_file: src/setup/music_pipeline_setup.py
+            python_file: ../src/setup/music_pipeline_setup.py
             parameters:
               - "--catalog"
               - "${var.catalog_name}"
@@ -76,7 +76,7 @@ resources:
             - task_key: setup_environment
           existing_cluster_id: ${var.existing_cluster_id}
           spark_python_task:
-            python_file: src/producer/save_yt_stats_snapshot.py
+            python_file: ../src/producer/save_yt_stats_snapshot.py
             parameters:
               - "--catalog"
               - "${var.catalog_name}"
@@ -107,7 +107,7 @@ resources:
         
           existing_cluster_id: ${var.existing_cluster_id}
           spark_python_task:
-            python_file: src/quality/reconciliation_gate.py
+            python_file: ../src/quality/reconciliation_gate.py
             parameters:
               - "--catalog"
               - "${var.catalog_name}"

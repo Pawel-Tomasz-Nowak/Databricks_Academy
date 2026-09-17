@@ -45,9 +45,6 @@ silver_youtube_stats_expectations = {
     "view_count_positive_or_null": "view_count IS NULL OR view_count > 0",
     "valid_published_at": "published_at IS NOT NULL AND published_at <= current_date()"
 }
-
-
-
 @dp.materialized_view(
     name=music_stats_tables["silver"],
     comment="Cleaned YouTube stats with typed columns, deduplicated snapshots, and per-hour delta metrics.",

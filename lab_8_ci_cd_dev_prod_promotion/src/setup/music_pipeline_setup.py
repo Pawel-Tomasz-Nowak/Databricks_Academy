@@ -6,6 +6,9 @@ imports remain safe in pipeline compilation contexts.
 """
 import argparse
 import os
+import sys
+import glob
+import shutil
 
 from pyspark.sql.types import DateType, StringType, StructField, StructType
 
@@ -151,17 +154,57 @@ def bootstrap_infrastructure() -> None:
         from databricks.sdk import WorkspaceClient
         w = WorkspaceClient()
         w.dbutils.fs.mkdirs(paths["json_landing_path"])
-        w.dbutils.fs.mkdirs(paths["music_metadata_dir"])
+        # w.dbutils.fs.mkdirs(paths["music_metadata_dir"])
     except Exception:
         # Fallback for contexts where WorkspaceClient is unavailable.
         dbutils.fs.mkdirs(paths["json_landing_path"])
-        dbutils.fs.mkdirs(paths["music_metadata_dir"])
+        # dbutils.fs.mkdirs(paths["music_metadata_dir"])
 
     print("[BOOTSTRAP] Infrastructure successfully configured.")
 
+# ------------------------------------------------------------------------------
+# 5. PREPARING METADATA LANDING ZONE
+# ------------------------------------------------------------------------------
+def get_bundle_root() -> str:
+    candidate_path = None
+    if len(sys.argv) > 0 and sys.argv[0] and sys.argv[0].endswith(".py"):
+        candidate_path = os.path.abspath(sys.argv[0])
+    elif "__file__" in globals():
+        candidate_path = os.path.abspath(__file__)
+
+    if candidate_path and "/files" in candidate_path:
+        return candidate_path.split("/files")[0] + "/files"
+
+    cwd = os.getcwd()
+    if "/files" in cwd:
+        return cwd.split("/files")[0] + "/files"
+        
+    return os.path.abspath(os.path.join(cwd, "..", ".."))
+
+# Bundle path resolving
+bundle_root = get_bundle_root()
+seed_dir = os.path.join(bundle_root, "data", "seed")
+
+# Make sure the metadata directory exists
+os.makedirs(music_metadata_dir, exist_ok=True)
+
+seed_files_pattern = os.path.join(seed_dir, music_metadata_file)
+found_seed_files = glob.glob(seed_files_pattern)
+
+if not found_seed_files:
+    print(f"Warning: Did not found any files matching {seed_files_pattern}")
+else:
+    for source_path in found_seed_files:
+        file_name = os.path.basename(source_path)
+        target_path = os.path.join(music_metadata_dir, file_name)
+        
+        # Copy only missing values to ensure idempotency
+        if not os.path.exists(target_path):
+            shutil.copyfile(source_path, target_path)
+            print(f"Copied seed: {file_name} -> {target_path}")
 
 # ------------------------------------------------------------------------------
-# 5. ENTRY POINT FOR TASK 1 (CLI Execution)
+# 6. ENTRY POINT FOR TASK 1 (CLI Execution)
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
     bootstrap_infrastructure()
