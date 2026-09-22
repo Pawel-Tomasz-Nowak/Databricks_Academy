@@ -42,7 +42,7 @@ jobs:
           databricks bundle validate -t dev
 
   deploy_to_prod:
-    name: CD - Deploy to PROD & Run
+    name: CD - Deploy to PROD & Run via SDK
     needs: validate_and_test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -50,21 +50,31 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Databricks SDK
+        run: |
+          python -m pip install --upgrade pip
+          pip install databricks-sdk
+
       - name: Install Databricks CLI
         uses: databricks/setup-cli@main
 
       - name: Deploy bundle to PROD
-        working-directory: ./lab_8_ci_cd_dev_prod_promotion
+        working-directory: ./lab_9_databricks_rest_api_automation
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
         run: |
           databricks bundle deploy -t prod
 
-      - name: Run Production ETL Orchestrator
-        working-directory: ./lab_8_ci_cd_dev_prod_promotion
+      - name: Trigger & Monitor Production Workflow via SDK
+        working-directory: ./lab_9_databricks_rest_api_automation
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
         run: |
-          databricks bundle run music_etl_orchestrator -t prod
+          python automation/platform_run.py
