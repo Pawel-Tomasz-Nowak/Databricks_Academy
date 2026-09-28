@@ -10,12 +10,12 @@ LICENSE
 .gitignore
 .git/
 .github/
-lab_1_databricks_fundamentals_and_dev_setup/
+lab_01_databricks_fundamentals_and_dev_setup/
 	Notebook.ipynb
 	alabama_sold_real_estate_intelligence_2026.csv
 	Dashboard - week 1.lvdash.json
 	image_1783362421351.png
-lab_2_azure_services_and_shared_lakehouse_setup/
+lab_02_azure_services_and_shared_lakehouse_setup/
 	Stage 1/
 		key_vault.png
 		storage_account.png
@@ -26,12 +26,12 @@ lab_2_azure_services_and_shared_lakehouse_setup/
 		creating schemas.sql
 		optional task.ipynb
 		silver_ingestion.ipynb
-lab_3_streaming_and_incremental_ingestion/
+lab_03_streaming_and_incremental_ingestion/
 	CloudFiles_AutoLoader.ipynb
 	EventHub_AutoLoader.ipynb
 	metallica_event_hubs.ipynb
 	optional_additions.ipynb
-lab_4_silver_layer_data_quality_and_schema_evolution/
+lab_04_silver_layer_data_quality_and_schema_evolution/
 	notebooks/
 		Lab 4.ipynb
 		workflow_for_job.ipynb
@@ -46,7 +46,7 @@ lab_4_silver_layer_data_quality_and_schema_evolution/
 		column_mapping_mode_required.png
 		delta_metadata_mismatch_extra_column.png
 	README.md
-lab_5_declarative_pipelines_lakeflow/
+lab_05_declarative_pipelines_lakeflow/
 	databricks.yml
 	README.md
 	src/
@@ -55,14 +55,14 @@ lab_5_declarative_pipelines_lakeflow/
 		pipelines/
 		transformations/
 	tests/
-lab_6_gold_layer_and_business_analytics/
+lab_06_gold_layer_and_business_analytics/
 	databricks.yml
 	README.md
 	BI/
 	screenshots/
 	src/
 	tests/
-lab_7_data_quality_testing_and_unit_tests/
+lab_07_data_quality_testing_and_unit_tests/
 	databricks.yml
 	README.md
 	BI/
@@ -80,7 +80,7 @@ lab_7_data_quality_testing_and_unit_tests/
 
 The repository is split into lab folders rather than one large notebook collection. That keeps the material for each topic together and makes it easier to follow the course week by week.
 
-### lab_1_databricks_fundamentals_and_dev_setup
+### lab_01_databricks_fundamentals_and_dev_setup
 
 This lab covers the basics of the Databricks environment and the development setup. The folder currently contains:
 
@@ -89,7 +89,7 @@ This lab covers the basics of the Databricks environment and the development set
 - `Dashboard - week 1.lvdash.json`, a dashboard export for the first week
 - `image_1783362421351.png`, a supporting image file
 
-### lab_2_azure_services_and_shared_lakehouse_setup
+### lab_02_azure_services_and_shared_lakehouse_setup
 
 This lab is divided into stages.
 
@@ -111,7 +111,7 @@ Stage 2 contains the notebooks for the lakehouse and ingestion tasks:
 - `Service Principal connection.ipynb`
 - `silver_ingestion.ipynb`
 
-### lab_3_streaming_and_incremental_ingestion
+### lab_03_streaming_and_incremental_ingestion
 
 This lab focuses on streaming and incremental ingestion patterns using Databricks AutoLoader, Event Hubs, and related streaming sources. The folder contains:
 
@@ -120,7 +120,7 @@ This lab focuses on streaming and incremental ingestion patterns using Databrick
 - `metallica_event_hubs.ipynb` — an example notebook used in the Event Hubs exercises
 - `optional_additions.ipynb` — additional streaming patterns and examples
 
-### lab_4_silver_layer_data_quality_and_schema_evolution ✅
+### lab_04_silver_layer_data_quality_and_schema_evolution ✅
 
 This lab demonstrates building a production-grade Silver Layer pipeline with data quality enforcement, schema evolution, and Slowly Changing Dimensions (SCD) Type I and Type II patterns. The lab showcases modular architecture and clean code practices.
 
@@ -149,7 +149,7 @@ This lab demonstrates building a production-grade Silver Layer pipeline with dat
 
 **Status:** ✅ Completed with code review, documentation, and clean code improvements.
 
-### lab_5_declarative_pipelines_lakeflow ✅
+### lab_05_declarative_pipelines_lakeflow ✅
 
 This lab builds an end-to-end music analytics pipeline using Databricks Lakeflow Spark Declarative Pipelines and Declarative Automation Bundles (DABs). The pipeline ingests YouTube video engagement snapshots via the YouTube Data API v3, processes them through a bronze–silver–gold medallion architecture, and exposes minute-level aggregate tables for trend analysis.
 
@@ -179,7 +179,7 @@ This lab builds an end-to-end music analytics pipeline using Databricks Lakeflow
 
 **Status:** ✅ Completed with full documentation, inline docstrings, and clean code.
 
-### lab_6_gold_layer_and_business_analytics ✅
+### lab_06_gold_layer_and_business_analytics ✅
 
 This lab focuses on the gold layer and the business analytics assets that sit on top of the music pipeline. It introduces a video-grain fact table, a metadata dimension table, artist- and album-level rollups, and the SQL assets needed to expose the data in dashboards, alerts, and secured views.
 
@@ -203,7 +203,7 @@ This lab focuses on the gold layer and the business analytics assets that sit on
 
 **Status:** ✅ README and Python inline documentation updated in English without changing runtime logic.
 
-### lab_7_data_quality_testing_and_unit_tests
+### lab_07_data_quality_testing_and_unit_tests
 
 This lab extends the medallion pipeline with comprehensive data quality controls and a pytest test suite backed by Databricks Connect. New additions compared to lab 6 include a metadata quarantine table, `@dp.expect_*` rules on every pipeline stage, a post-pipeline reconciliation job task, and unit plus integration tests for the core transformation functions.
 
