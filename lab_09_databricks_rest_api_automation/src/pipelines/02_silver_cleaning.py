@@ -1,4 +1,4 @@
-"""Build the silver layer and lab_7 data-quality controls.
+"""Build the silver layer and lab_07 data-quality controls.
 
 Compared with lab 6, this file adds stronger expectations, a quarantine table
 for rejected metadata rows, and an SCD Type 2 history flow for metadata changes.

@@ -26,7 +26,7 @@ jobs:
           pip install pytest pyspark chispa
 
       - name: Run unit tests
-        working-directory: ./lab_8_ci_cd_dev_prod_promotion
+        working-directory: ./lab_08_ci_cd_dev_prod_promotion
         run: |
           pytest tests/test_aggregate_stats.py tests/test_aggregate_video_stats.py
 
@@ -34,7 +34,7 @@ jobs:
         uses: databricks/setup-cli@main
 
       - name: Validate Databricks Asset Bundle (DEV)
-        working-directory: ./lab_8_ci_cd_dev_prod_promotion
+        working-directory: ./lab_08_ci_cd_dev_prod_promotion
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
@@ -64,7 +64,7 @@ jobs:
         uses: databricks/setup-cli@main
 
       - name: Deploy bundle to PROD
-        working-directory: ./lab_9_databricks_rest_api_automation
+        working-directory: ./lab_09_databricks_rest_api_automation
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
@@ -72,7 +72,7 @@ jobs:
           databricks bundle deploy -t prod
 
       - name: Trigger & Monitor Production Workflow via SDK
-        working-directory: ./lab_9_databricks_rest_api_automation
+        working-directory: ./lab_09_databricks_rest_api_automation
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}

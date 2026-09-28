@@ -1,4 +1,4 @@
-"""Define shared configuration and bootstrap helpers for the lab_6 music pipeline.
+"""Define shared configuration and bootstrap helpers for the lab_06 music pipeline.
 
 This module is imported by both Lakeflow Spark Declarative Pipeline files and
 job-style Python tasks. It keeps Spark-dependent work delayed until runtime so

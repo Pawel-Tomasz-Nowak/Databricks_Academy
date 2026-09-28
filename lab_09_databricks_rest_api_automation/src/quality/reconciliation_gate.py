@@ -1,4 +1,4 @@
-"""Run post-pipeline reconciliation checks for lab_7.
+"""Run post-pipeline reconciliation checks for lab_07.
 
 This task acts as the final job gate. It verifies that quarantine handling does
 not hide silent data loss and that the gold aggregates preserve the same total

@@ -1,4 +1,4 @@
-# lab_6_gold_layer_and_business_analytics
+# lab_06_gold_layer_and_business_analytics
 
 This lab documents the gold layer and business analytics assets built on top of the music medallion pipeline. It keeps the bronze and silver ingestion flow, adds business-facing fact and dimension tables, and connects them to dashboard, alerting, and security assets used in Databricks SQL.
 
@@ -32,7 +32,7 @@ silver_music_metadata_history
 ## Project Structure
 
 ```text
-lab_6_gold_layer_and_business_analytics/
+lab_06_gold_layer_and_business_analytics/
 ├── databricks.yml                              # Bundle definition for the Lakeflow pipeline and orchestration job
 ├── README.md                                   # Lab-level documentation
 ├── Daily Standups.txt                          # Sprint notes captured during the assignment

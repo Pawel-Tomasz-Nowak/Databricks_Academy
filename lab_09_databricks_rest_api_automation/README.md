@@ -50,7 +50,7 @@ flowchart LR
 ## Project Structure
 
 ```text
-lab_9_databricks_rest_api_automation/
+lab_09_databricks_rest_api_automation/
 ├── automation/
 │   ├── platform_run.py       # Discovers, triggers, and polls the production job
 │   ├── run_brief_compute.py  # Submits a one-time task with ephemeral compute
@@ -165,14 +165,14 @@ The repository-level workflow at `.github/workflows/deploy.yml` implements the p
 
 1. Checks out the repository and provisions Python 3.11.
 2. Installs `databricks-sdk` and the Databricks CLI.
-3. Runs `databricks bundle deploy -t prod` from `lab_9_databricks_rest_api_automation`.
+3. Runs `databricks bundle deploy -t prod` from `lab_09_databricks_rest_api_automation`.
 4. Runs `python automation/platform_run.py` from the same directory.
 
 The SDK step receives the workspace credentials as environment variables:
 
 ```yaml
 - name: Trigger & Monitor Production Workflow via SDK
-  working-directory: ./lab_9_databricks_rest_api_automation
+    working-directory: ./lab_09_databricks_rest_api_automation
   env:
     DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
     DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
@@ -204,7 +204,7 @@ Use a repository or environment secret with the minimum workspace permissions re
 Install the SDK from the Lab 9 directory:
 
 ```powershell
-cd lab_9_databricks_rest_api_automation
+cd lab_09_databricks_rest_api_automation
 python -m pip install --upgrade pip
 python -m pip install databricks-sdk
 ```

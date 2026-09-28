@@ -51,7 +51,7 @@ src/quality/reconciliation_gate.py
 ## Project Structure
 
 ```text
-lab_7_data_quality_testing_and_unit_tests/
+lab_07_data_quality_testing_and_unit_tests/
 ├── databricks.yml                              # DABs bundle: variables, pipeline, 4-task job, dev/prod targets
 ├── README.md                                   # This file
 ├── src/

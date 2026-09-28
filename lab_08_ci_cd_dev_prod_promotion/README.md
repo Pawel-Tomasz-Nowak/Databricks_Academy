@@ -62,7 +62,7 @@ state provide the environment boundary.
 ## Repository Structure
 
 ```text
-lab_8_ci_cd_dev_prod_promotion/
+lab_08_ci_cd_dev_prod_promotion/
 ├── databricks.yml                         # Bundle name, variables, targets, and presets
 ├── resources/
 │   └── jobs_dlt.yml                        # Lakeflow pipeline and four-task orchestrator
@@ -229,7 +229,7 @@ bundle validation and deployment.
 ### Validate Both Bundle Targets
 
 ```bash
-cd lab_8_ci_cd_dev_prod_promotion
+cd lab_08_ci_cd_dev_prod_promotion
 
 databricks bundle validate -t dev
 databricks bundle validate -t prod
@@ -238,7 +238,7 @@ databricks bundle validate -t prod
 ### Run the Local Unit Tests
 
 ```bash
-cd lab_8_ci_cd_dev_prod_promotion
+cd lab_08_ci_cd_dev_prod_promotion
 python -m pip install --upgrade pip
 python -m pip install pytest pyspark chispa
 pytest tests/test_aggregate_stats.py tests/test_aggregate_video_stats.py -v
@@ -253,7 +253,7 @@ These commands mirror the CD job and should be used only when the caller is
 authorized to deploy to the shared Databricks workspace:
 
 ```bash
-cd lab_8_ci_cd_dev_prod_promotion
+cd lab_08_ci_cd_dev_prod_promotion
 databricks bundle deploy -t prod
 databricks bundle run music_etl_orchestrator -t prod
 ```
