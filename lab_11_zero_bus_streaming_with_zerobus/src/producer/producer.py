@@ -17,14 +17,14 @@ secret_scope = "pawelnowak2004pri219_scope"
 
 def fetch_credential(env_var_name: str, scope: str, key: str) -> str:
     """
-    Pobiera poświadczenia priorytetowo ze zmiennych środowiskowych.
-    Jeśli ich brak, pobiera z Databricks Secret Scope i dekoduje z Base64.
+    Draws credentials from environmental variables.
+    If they're missing, takes them from Databricks Secret Scope and encoded them from Base64
     """
+    
     val = os.environ.get(env_var_name)
     if val is not None:
         return val
     
-    # Pobranie przez SDK zwraca wartość zakodowaną w Base64
     b64_val = w.secrets.get_secret(scope=scope, key=key).value
     return base64.b64decode(b64_val).decode("utf-8")
 
