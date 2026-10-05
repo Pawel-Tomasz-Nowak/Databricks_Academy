@@ -26,7 +26,7 @@ jobs:
           pip install pytest pyspark chispa
 
       - name: Run unit tests
-        working-directory: ./lab_08_ci_cd_dev_prod_promotion
+        working-directory: ./final_project
         run: |
           pytest tests/test_aggregate_stats.py tests/test_aggregate_video_stats.py
 
@@ -34,7 +34,7 @@ jobs:
         uses: databricks/setup-cli@main
 
       - name: Validate Databricks Asset Bundle (DEV)
-        working-directory: ./lab_08_ci_cd_dev_prod_promotion
+        working-directory: ./final_project
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
