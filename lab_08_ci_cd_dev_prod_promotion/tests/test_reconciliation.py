@@ -7,6 +7,8 @@ _init_bundle_path()
 
 # from src.setup.music_pipeline_setup import music_metadata_tables, music_stats_tables
 
+# This might go horribly wrong especially if the catalog is changed!!!
+# CHANGE THE CATALOG SCHEMA TO BE DYNAMICALLY RETRIEVED FROM THE databricks.yml
 
 
 catalog = "dbr_dev"

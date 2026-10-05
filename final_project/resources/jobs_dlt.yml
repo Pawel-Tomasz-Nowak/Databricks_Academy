@@ -1,7 +1,4 @@
 resources:
-  # ----------------------------------------------------------------------------
-  # A. DLT WORLD (Configured via spark.conf)
-  # ----------------------------------------------------------------------------
   pipelines:
     music_dlt_pipeline:
       name: "[${bundle.target}] Music Popularity Lakeflow Pipeline"
@@ -10,10 +7,8 @@ resources:
       catalog: ${var.catalog_name}
       channel: "CURRENT"
       edition: "ADVANCED"
-      photon: false
-      serverless: false
+      serverless: true
 
-      # Values available in DLT via spark.conf.get()
       configuration:
         music.catalog: ${var.catalog_name}
         music.schema: ${var.schema_name}
@@ -21,7 +16,6 @@ resources:
         music.secret_scope: ${var.secret_scope_val}
         music.secret_key: ${var.secret_key_val}
         bundle.root: ${workspace.file_path}/files
-
 
       libraries:
         - file:
@@ -35,27 +29,27 @@ resources:
         - file:
             path: ../src/pipelines/04_gold_aggregations.py
 
-      clusters:
-        - label: default
-          node_type_id: "Standard_D4ds_v5"
-          num_workers: 1
-          custom_tags:
-            ResourceClass: "SingleNode"
-          spark_conf:
-            spark.master: "local[*]"
-            spark.databricks.cluster.profile: "singleNode"
-
-  # ----------------------------------------------------------------------------
-  # B. JOBS WORLD (Configured via CLI arguments)
-  # ----------------------------------------------------------------------------
   jobs:
     music_etl_orchestrator:
       name: "[${bundle.target}] Full Music ETL Workflow"
 
+      job_clusters:
+        - job_cluster_key: job_cluster_light
+          new_cluster:
+            spark_version: 15.4.x-scala2.12  
+            node_type_id: Standard_DS3_v2     
+            num_workers: 0                    
+            data_security_mode: SINGLE_USER 
+            spark_conf:
+              spark.master: local[*, 4]
+              music.catalog: ${var.catalog_name}
+              music.schema: ${var.schema_name}
+              music.volume: ${var.landing_zone_name}
+
       tasks:
         # Task 1: Environment Setup
         - task_key: setup_environment
-          existing_cluster_id: ${var.existing_cluster_id}
+          job_cluster_key: job_cluster_light
           spark_python_task:
             python_file: ../src/setup/music_pipeline_setup.py
             parameters:
@@ -72,9 +66,9 @@ resources:
 
         # Task 2: API Producer
         - task_key: fetch_youtube_data
+          job_cluster_key: job_cluster_light
           depends_on:
             - task_key: setup_environment
-          existing_cluster_id: ${var.existing_cluster_id}
           spark_python_task:
             python_file: ../src/producer/save_yt_stats_snapshot.py
             parameters:
@@ -98,14 +92,12 @@ resources:
 
         # Task 4: Automated Data Quality & Reconciliation Gate
         - task_key: reconciliation_gate
+          job_cluster_key: job_cluster_light
           depends_on:
             - task_key: run_dlt_pipeline
-              
-          email_notifications: # When the job fails (due to bad quality data, a notification is sent)
+          email_notifications:
             on_failure:
               - "my_email@2137.pl"
-        
-          existing_cluster_id: ${var.existing_cluster_id}
           spark_python_task:
             python_file: ../src/quality/reconciliation_gate.py
             parameters:
@@ -115,3 +107,7 @@ resources:
               - "${var.schema_name}"
               - "--volume"
               - "${var.landing_zone_name}"
+              - "--secret_scope"
+              - "${var.secret_scope_val}"
+              - "--secret_key"
+              - "${var.secret_key_val}"
