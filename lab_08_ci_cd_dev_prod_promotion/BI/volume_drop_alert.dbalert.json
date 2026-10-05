@@ -1,0 +1,46 @@
+{
+  "evaluation": {
+    "source": {
+      "name": "is_volume_dropped",
+      "display": "is_volume_dropped",
+      "aggregation": "AGGREGATION_UNSPECIFIED"
+    },
+    "comparison_operator": "EQUAL",
+    "threshold": {
+      "value": {
+        "double_value": 1.0
+      }
+    },
+    "notification": {}
+  },
+  "schedule": {
+    "quartz_cron_schedule": "20 0 8 * * ?",
+    "timezone_id": "Europe/Warsaw"
+  },
+  "query_lines": [
+    "WITH new_batch AS (",
+    "    SELECT ",
+    "        COUNT(*) AS new_records,",
+    "        MAX(`_ingested_at`) AS latest_batch_time",
+    "    FROM dbr_dev.music_analytics.fact_music_stats",
+    "    WHERE `_ingested_at` = (",
+    "        SELECT MAX(`_ingested_at`) ",
+    "        FROM dbr_dev.music_analytics.fact_music_stats",
+    "    )",
+    "),",
+    "expected_metadata AS (",
+    "    SELECT COUNT(*) AS expected_records",
+    "    FROM dbr_dev.music_analytics.dim_music_metadata",
+    ")",
+    "SELECT ",
+    "    nb.new_records,",
+    "    em.expected_records,",
+    "    nb.latest_batch_time,",
+    "    CASE ",
+    "        WHEN nb.new_records < em.expected_records THEN 1 ",
+    "        ELSE 0 ",
+    "    END AS is_volume_dropped",
+    "FROM new_batch nb ",
+    "CROSS JOIN expected_metadata em;"
+  ]
+}
