@@ -1,0 +1,6 @@
+{
+  "sources": {
+    "mlflow/skills": {"requested_ref": "main", "resolved_kind": "branch", "resolved_ref": "main", "resolved_sha": "51a42ea2b07fadb45fb34c7cecf0c87edbe05686", "fetched_at": "2026-10-13T11:20:34Z"},
+    "databricks/databricks-agent-skills": {"install_method": "databricks-aitools", "cli_version": "1.12.1", "skills_release": "0.2.10", "fetched_at": "2026-10-13T11:20:34Z"}
+  }
+}
