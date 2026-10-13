@@ -6,7 +6,7 @@ include:
   
 variables:
   catalog_name:
-    default: "dbr_dev_trial"
+    default: "dbr_dev_trial_2"
   schema_name:
     default: "music_analytics"
   landing_zone_name:
@@ -20,24 +20,24 @@ targets:
   dev:
     default: true
     workspace:
-      host: https://adb-7405615123305702.2.azuredatabricks.net
+      host: https://adb-7405618361895520.0.azuredatabricks.net
     presets:
       name_prefix: ''
       pipelines_development: true
       trigger_pause_status: "PAUSED"
     variables:
-      catalog_name: "dbr_dev_trial"
+      catalog_name: "dbr_dev_trial_2"
       schema_name: "music_analytics"
       landing_zone_name: "landing_zone"
 
   prod:
     workspace:
-      host: https://adb-7405615123305702.2.azuredatabricks.net
+      host: https://adb-7405618361895520.0.azuredatabricks.net
     presets:
       name_prefix: ''
       pipelines_development: false
       trigger_pause_status: "UNPAUSED"
     variables:
-      catalog_name: "dbr_dev_trial" 
+      catalog_name: "dbr_dev_trial_2" 
       schema_name: "music_analytics_prod"
       landing_zone_name: "landing_zone_prod"
