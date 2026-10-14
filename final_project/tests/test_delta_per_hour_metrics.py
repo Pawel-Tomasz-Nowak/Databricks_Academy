@@ -19,7 +19,7 @@ def test_compute_per_hour_deltas_edge_cases(spark: SparkSession):
     # 1. Define an explicit silver-layer input schema.
     schema = StructType([
         StructField("video_id", StringType(), False),
-        StructField("_ingested_at", TimestampType(), False),
+        StructField("_scrapped_at", TimestampType(), False),
         StructField("view_count", IntegerType(), True),
         StructField("like_count", IntegerType(), True),
         StructField("comment_count", IntegerType(), True),
@@ -48,7 +48,7 @@ def test_compute_per_hour_deltas_edge_cases(spark: SparkSession):
 
     # 4. Collect deterministically ordered results.
     rows = (
-        result_df.orderBy("video_id", "_ingested_at_hours", "view_count")
+        result_df.orderBy("video_id", "_scrapped_at_hours", "view_count")
         .collect()
     )
 

@@ -18,27 +18,30 @@ from src.transformations.aggregate_stats import aggregate_stats
 def sample_silver_df(spark: SparkSession):
     """Create a compact silver-like fixture shared by the aggregate tests."""
     schema = StructType([
+        StructField("_scrapped_at", TimestampType(), False),
         StructField("author", StringType(), False),
         StructField("album", StringType(), False),
         StructField("video_id", StringType(), False),
         StructField("total_views", IntegerType(), False),
         StructField("total_likes", IntegerType(), False),
         StructField("total_comments", IntegerType(), False),
-        StructField("_ingested_at", TimestampType(), False),
+        StructField("_ingested_at", TimestampType(), False)
     ])
 
     data = [
         # Metallica, album "Black Album": two videos in the same snapshot.
-        (
+        (   
+            datetime(2026, 8, 26, 16, 0, 0),
             "Metallica",
             "Black Album",
             "vid_1",
             100,
             10,
             2,
-            datetime(2026, 8, 26, 16, 0, 0),
+            datetime(2026, 8, 26, 16, 0, 0)
         ),
-        (
+        (   
+            datetime(2026, 8, 26, 16, 0, 0),
             "Metallica",
             "Black Album",
             "vid_2",
@@ -49,6 +52,7 @@ def sample_silver_df(spark: SparkSession):
         ),
         # Megadeth, album "Rust in Peace": a single-video sample.
         (
+            datetime(2026, 8, 26, 16, 0, 0),
             "Megadeth",
             "Rust in Peace",
             "vid_3",
