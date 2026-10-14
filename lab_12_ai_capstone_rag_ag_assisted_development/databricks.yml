@@ -1,0 +1,47 @@
+bundle:
+  name: music_popularity_spike_detection
+
+include:
+  - resources/jobs_dlt.yml
+  
+variables:
+  catalog_name:
+    default: "dbr_dev"
+  schema_name:
+    default: "music_analytics"
+  landing_zone_name:
+    default: "landing_zone"
+  secret_scope_val:
+    default: "pawelnowak2004pri219_scope"
+  secret_key_val:
+    default: "pawelnowak-youtube-api"
+  model:
+    default: "databricks-meta-llama-3-3-70b-instruct"
+  endpoint:
+      default: "powerbi_docs_vs_endpoint"
+
+targets:
+  dev:
+    default: true
+    workspace:
+      host: https://adb-7405618361895520.0.azuredatabricks.net
+    presets:
+      name_prefix: ''
+      pipelines_development: true
+      trigger_pause_status: "PAUSED"
+    variables:
+      catalog_name: "dbr_dev"
+      schema_name: "music_analytics"
+      landing_zone_name: "landing_zone"
+
+  prod:
+    workspace:
+      host: https://adb-7405618361895520.0.azuredatabricks.net
+    presets:
+      name_prefix: ''
+      pipelines_development: false
+      trigger_pause_status: "UNPAUSED"
+    variables:
+      catalog_name: "dbr_dev" 
+      schema_name: "music_analytics_prod"
+      landing_zone_name: "landing_zone_prod"

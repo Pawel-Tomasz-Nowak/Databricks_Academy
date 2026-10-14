@@ -1,0 +1,155 @@
+resources:
+  pipelines:
+    music_dlt_pipeline:
+      name: "[${bundle.target}] Music Popularity Lakeflow Pipeline"
+      continuous: false
+      target: ${var.schema_name}
+      catalog: ${var.catalog_name}
+      channel: "CURRENT"
+      edition: "ADVANCED"
+      serverless: true
+
+      configuration:
+        music.catalog: ${var.catalog_name}
+        music.schema: ${var.schema_name}
+        music.volume: ${var.landing_zone_name}
+        music.secret_scope: ${var.secret_scope_val}
+        music.secret_key: ${var.secret_key_val}
+        bundle.root: ${workspace.file_path}/files
+
+      libraries:
+        - file:
+            path: ../src/pipelines/01_bronze_ingestion.py
+        - file:
+            path: ../src/pipelines/02_silver_cleaning.py
+        - file:
+            path: ../src/pipelines/03_fact_video_metrics.py
+        - file:
+            path: ../src/pipelines/03_gold_metadata.py
+        - file:
+            path: ../src/pipelines/04_gold_aggregations.py
+
+  jobs:
+    music_etl_orchestrator:
+      name: "[${bundle.target}] Full Music ETL Workflow"
+
+      job_clusters:
+        - job_cluster_key: job_cluster_light
+          new_cluster:
+            spark_version: 15.4.x-scala2.12  
+            node_type_id: Standard_DS3_v2     
+            num_workers: 0                    
+            data_security_mode: SINGLE_USER
+            custom_tags:
+              ResourceClass: "SingleNode"
+            spark_conf:
+              spark.databricks.cluster.profile: singleNode
+              spark.master: local[*]
+              music.catalog: ${var.catalog_name}
+              music.schema: ${var.schema_name}
+              music.volume: ${var.landing_zone_name}
+
+      tasks:
+        # Task 1: Environment Setup
+        - task_key: setup_environment
+          job_cluster_key: job_cluster_light
+          spark_python_task:
+            python_file: ../src/setup/music_pipeline_setup.py
+            parameters:
+              - "--catalog"
+              - "${var.catalog_name}"
+              - "--schema"
+              - "${var.schema_name}"
+              - "--volume"
+              - "${var.landing_zone_name}"
+              - "--secret_scope"
+              - "${var.secret_scope_val}"
+              - "--secret_key"
+              - "${var.secret_key_val}"
+
+        # Task 2: API Producer
+        - task_key: fetch_youtube_data
+          job_cluster_key: job_cluster_light
+          depends_on:
+            - task_key: setup_environment
+          spark_python_task:
+            python_file: ../src/producer/save_yt_stats_snapshot.py
+            parameters:
+              - "--catalog"
+              - "${var.catalog_name}"
+              - "--schema"
+              - "${var.schema_name}"
+              - "--volume"
+              - "${var.landing_zone_name}"
+              - "--secret_scope"
+              - "${var.secret_scope_val}"
+              - "--secret_key"
+              - "${var.secret_key_val}"
+
+        # Task 3: Run DLT Pipeline
+        - task_key: run_dlt_pipeline
+          depends_on:
+            - task_key: fetch_youtube_data
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.music_dlt_pipeline.id}
+
+        # Task 4: Automated Data Quality & Reconciliation Gate
+        - task_key: reconciliation_gate
+          job_cluster_key: job_cluster_light
+          depends_on:
+            - task_key: run_dlt_pipeline
+          email_notifications:
+            on_failure:
+              - "my_email@2137.pl"
+          spark_python_task:
+            python_file: ../src/quality/reconciliation_gate.py
+            parameters:
+              - "--catalog"
+              - "${var.catalog_name}"
+              - "--schema"
+              - "${var.schema_name}"
+              - "--volume"
+              - "${var.landing_zone_name}"
+              - "--secret_scope"
+              - "${var.secret_scope_val}"
+              - "--secret_key"
+              - "${var.secret_key_val}"
+        
+        # Task 5: creating RAG endpoint
+        - task_key: create_rag_endpooint
+          job_cluster_key: job_cluster_light
+          notebook_task:
+            notebook_path: ../src/rag/part_A_RAG_on_databricks.ipynb
+            base_parameters:
+              catalog: "${var.catalog_name}"
+              schema: "${var.schema_name}"
+              endpoint: "${var.endpoint}"
+              model: "${var.model}"
+
+          libraries:
+            - pypi:
+                package: databricks-ai-search
+            - pypi: 
+                package: langchain-text-splitters
+            - pypi:
+                  package: beautifulsoup4
+
+          # Task 6: AI Capstone - RAG Verification Task
+        - task_key: evaluate_rag_service
+          job_cluster_key: job_cluster_light
+          depends_on:
+            - task_key: create_rag_endpooint
+          spark_python_task:
+            python_file: ../src/rag/inference.py
+            parameters:
+              - "--catalog"
+              - "${var.catalog_name}"
+              - "--schema"
+              - "${var.schema_name}"
+              - "--endpoint"
+              - "${var.endpoint}"
+              - "--model"
+              - "${var.model}"
+          libraries:
+            - pypi:
+                package: databricks-ai-search

@@ -2,6 +2,12 @@
 
 This repository collects the lab work for the Databricks Academy by SoftServe. It is organized by assignment so each lab stays in its own folder with the notebooks, datasets, screenshots, and other files that belong to that part of the course.
 
+## Module status
+
+| Module | Focus | Key topics | Status |
+| --- | --- | --- | --- |
+| **Lab 11** | Direct Push Ingestion (Zerobus Pattern) | Brokerless Ingest, SQL Execution API, Source Idempotency, MERGE | Completed |
+
 ## Repository layout
 
 ```text
@@ -227,6 +233,12 @@ This lab extends the medallion pipeline with comprehensive data quality controls
 * Gold: `fact_music_stats`, `dim_music_metadata`, `gold_author_music_stats`, `gold_album_music_stats`
 
 **Status:** Documented and updated with English-only docstrings, cleaned inline comments, and a rewritten README.
+
+### Module 11: Direct Lakehouse Ingestion (Zerobus Pattern)
+
+- **Brokerless Architecture:** Eliminates 24/7 provisioned Kafka infrastructure for single-sink Lakehouse ingest workloads, reducing compute idle costs.
+- **Direct REST Push:** External client pushes micro-batches via Databricks SQL Execution API (`/api/2.0/sql/statements`).
+- **Idempotency & Resilience:** Source-generated UUID v4 keys paired with exponential backoff and randomized jitter on the client, and target `MERGE INTO` deduplication in Delta Lake.
 
 ## Notes
 
