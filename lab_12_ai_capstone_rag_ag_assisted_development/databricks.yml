@@ -15,6 +15,10 @@ variables:
     default: "pawelnowak2004pri219_scope"
   secret_key_val:
     default: "pawelnowak-youtube-api"
+  model:
+    default: "databricks-meta-llama-3-3-70b-instruct"
+  endpoint:
+      default: "powerbi_docs_vs_endpoint"
 
 targets:
   dev:

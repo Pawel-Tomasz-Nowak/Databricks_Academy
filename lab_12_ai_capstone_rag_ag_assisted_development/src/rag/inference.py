@@ -3,7 +3,7 @@ import sys
 import time
 from datetime import datetime
 import mlflow.deployments
-from databricks.vector_search.client import VectorSearchClient
+from databricks.ai_search.client import VectorSearchClient
 from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     ArrayType,
@@ -130,7 +130,7 @@ def main():
     )
     parser.add_argument(
         "--model",
-        default="databricks-meta-llama-3-1-70b-instruct",
+        default="databricks-meta-llama-3-3-70b-instruct",
         help="Serving endpoint name",
     )
     parser.add_argument(

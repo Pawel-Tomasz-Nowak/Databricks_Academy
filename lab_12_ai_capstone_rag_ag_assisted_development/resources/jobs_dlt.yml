@@ -114,12 +114,31 @@ resources:
               - "${var.secret_scope_val}"
               - "--secret_key"
               - "${var.secret_key_val}"
+        
+        # Task 5: creating RAG endpoint
+        - task_key: create_rag_endpooint
+          job_cluster_key: job_cluster_light
+          notebook_task:
+            notebook_path: ../src/rag/part_A_RAG_on_databricks.ipynb
+            base_parameters:
+              catalog: "${var.catalog_name}"
+              schema: "${var.schema_name}"
+              endpoint: "${var.endpoint}"
+              model: "${var.model}"
 
-          # Task 5: AI Capstone - RAG Verification Task
+          libraries:
+            - pypi:
+                package: databricks-ai-search
+            - pypi: 
+                package: langchain-text-splitters
+            - pypi:
+                  package: beautifulsoup4
+
+          # Task 6: AI Capstone - RAG Verification Task
         - task_key: evaluate_rag_service
           job_cluster_key: job_cluster_light
           depends_on:
-            - task_key: reconciliation_gate
+            - task_key: create_rag_endpooint
           spark_python_task:
             python_file: ../src/rag/inference.py
             parameters:
@@ -128,6 +147,9 @@ resources:
               - "--schema"
               - "${var.schema_name}"
               - "--endpoint"
-              - "powerbi_docs_vs_endpoint"
+              - "${var.endpoint}"
               - "--model"
-              - "databricks-meta-llama-3-1-70b-instruct"
+              - "${var.model}"
+          libraries:
+            - pypi:
+                package: databricks-ai-search
