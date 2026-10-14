@@ -6,7 +6,7 @@ include:
   
 variables:
   catalog_name:
-    default: "dbr_dev_trial_2"
+    default: "dbr_dev"
   schema_name:
     default: "music_analytics"
   landing_zone_name:
@@ -15,6 +15,10 @@ variables:
     default: "pawelnowak2004pri219_scope"
   secret_key_val:
     default: "pawelnowak-youtube-api"
+  model:
+    default: "databricks-meta-llama-3-3-70b-instruct"
+  endpoint:
+      default: "powerbi_docs_vs_endpoint"
 
 targets:
   dev:
@@ -26,7 +30,7 @@ targets:
       pipelines_development: true
       trigger_pause_status: "PAUSED"
     variables:
-      catalog_name: "dbr_dev_trial_2"
+      catalog_name: "dbr_dev"
       schema_name: "music_analytics"
       landing_zone_name: "landing_zone"
 
@@ -38,6 +42,6 @@ targets:
       pipelines_development: false
       trigger_pause_status: "UNPAUSED"
     variables:
-      catalog_name: "dbr_dev_trial_2" 
+      catalog_name: "dbr_dev" 
       schema_name: "music_analytics_prod"
       landing_zone_name: "landing_zone_prod"

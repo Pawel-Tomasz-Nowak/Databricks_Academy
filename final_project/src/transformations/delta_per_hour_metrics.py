@@ -12,16 +12,16 @@ def compute_per_hour_deltas(df: DataFrame) -> DataFrame:
     """Enrich a music-stats DataFrame with per-hour engagement delta columns.
 
     For each video, computes the change in view, like, and comment counts
-    between consecutive ingestion snapshots, then normalises each delta by
+    between consecutive scrapped snapshots, then normalises each delta by
     the elapsed time in hours between those snapshots.
 
     Args:
         df: Silver-layer DataFrame containing ``video_id``,
-            ``_ingested_at`` (TimestampType), ``view_count``,
+            ``_scrapped_at`` (TimestampType), ``view_count``,
             ``like_count``, and ``comment_count``.
 
     Returns:
-        Input DataFrame augmented with ``_ingested_at_hours``,
+        Input DataFrame augmented with ``_scrapped_at_hours``,
         ``view_delta_per_hour``, ``like_delta_per_hour``, and
         ``comment_delta_per_hour``. Intermediate raw-delta columns are
         dropped before returning.
@@ -81,13 +81,13 @@ def compute_per_hour_deltas(df: DataFrame) -> DataFrame:
         return df.withColumns(exprs)
 
     df = df.withColumns({
-        "_ingested_at_hours": F.unix_timestamp(F.col("_ingested_at")) / _SECONDS_PER_HOUR,
+        "_scrapped_at_hours": F.unix_timestamp(F.col("_scrapped_at")) / _SECONDS_PER_HOUR,
     })
 
-    video_window = Window.partitionBy("video_id").orderBy("_ingested_at_hours")
+    video_window = Window.partitionBy("video_id").orderBy("_scrapped_at_hours")
 
     df = compute_lag_differences(df, video_window, [
-        ("hour_delta", "_ingested_at_hours"),
+        ("hour_delta", "_scrapped_at_hours"),
         ("view_delta", "view_count"),
         ("like_delta", "like_count"),
         ("comment_delta", "comment_count"),

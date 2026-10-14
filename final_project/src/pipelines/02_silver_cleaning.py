@@ -59,6 +59,7 @@ def silver_youtube_stats():
     df_raw = spark.read.table(music_stats_tables["bronze"])
 
     columns_to_cast = {
+        "_scrapped_at":F.col("_scrapped_at").cast("timestamp"),
         "_ingested_at": F.col("_ingested_at").cast("timestamp"),
         "published_at": F.col("published_at").cast("timestamp"),
         "video_id": F.col("video_id").cast("string"),
@@ -69,7 +70,7 @@ def silver_youtube_stats():
         "video_title": F.col("video_title").cast("string"),
     }
 
-    df_clean = df_raw.withColumns(columns_to_cast).dropDuplicates(["video_id", "_ingested_at"])
+    df_clean = df_raw.withColumns(columns_to_cast).dropDuplicates(["video_id", "_scrapped_at"])
     return compute_per_hour_deltas(df_clean)
 
 
@@ -98,16 +99,11 @@ def silver_music_stats_quarantine():
     return quarantine_df
 
 
-
-
-
-
-
-
-
-
-
-
+# -----------------------------
+# -----------------------------
+# METADATA TABLES
+# -----------------------------
+# -----------------------------
 
 music_metadata_expectations = {
     "valid_url": "url IS NOT NULL AND LEN(trim(url)) > 0",
@@ -129,7 +125,7 @@ def silver_music_metadata_current():
     """Build the latest valid metadata snapshot per ``video_id``.
 
     The bronze metadata table is append-only, so the silver snapshot uses a
-    window ordered by ingestion time and source file path to keep the newest row.
+    window ordered by scrapping time and source file path to keep the newest row.
     """
     df_raw = spark.read.table(music_metadata_tables["bronze"])
     latest_row_window = Window.partitionBy("video_id").orderBy(
@@ -144,6 +140,7 @@ def silver_music_metadata_current():
         .withColumn("_row_num", F.row_number().over(latest_row_window))
         .filter(F.col("_row_num") == 1)
         .drop("_row_num")
+        .dropDuplicates(["video_id"])
     )
 
 
@@ -196,13 +193,13 @@ dp.create_streaming_table(
 )
 
 # A deterministic secondary ordering column is required because multiple CSV
-# files can land with the same _ingested_at for a single video_id.
+# files can land with the same _scrapped_at for a single video_id.
 dp.create_auto_cdc_flow(
     target=music_metadata_tables["silver_history"],
     source="silver_music_metadata_cdc_source",
     keys=["video_id"],
     sequence_by=F.struct(F.col("_ingested_at"), F.col("_source_file_path")),
     stored_as_scd_type=2,
-    track_history_column_list=["url", "author", "title", "album", "album_release_date"],
+    track_history_column_list=["author", "title", "album", "album_release_date"],
     name="silver_music_metadata_history_flow",
 )

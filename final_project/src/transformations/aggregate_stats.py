@@ -12,7 +12,7 @@ def aggregate_stats(silver_df: DataFrame, by: str = "author") -> DataFrame:
     """Aggregate descriptive engagement statistics per grouping key and snapshot.
 
     Args:
-        silver_df: DataFrame containing ``video_id``, ``_ingested_at``, the
+        silver_df: DataFrame containing ``video_id``, ``_scrapped_at``, the
             grouping column selected by ``by``, and the ``total_*`` metrics.
         by: Grouping column name, typically ``author`` or ``album``.
 
@@ -21,7 +21,7 @@ def aggregate_stats(silver_df: DataFrame, by: str = "author") -> DataFrame:
         coefficient-of-variation percentages for views, likes, and comments.
     """
 
-    agg_df = silver_df.groupBy(by, "_ingested_at").agg(
+    agg_df = silver_df.groupBy(by, "_scrapped_at").agg(
         F.countDistinct("video_id").alias("total_videos"),
         F.sum("total_views").alias("total_views"),
         F.min("total_views").alias("min_views"),
@@ -53,7 +53,7 @@ def aggregate_stats(silver_df: DataFrame, by: str = "author") -> DataFrame:
         "cv_comments_pct",
         (F.col("stddev_comments") / F.col("mean_comments")) * 100
     ).select(
-        by, "_ingested_at", "total_videos",
+        by, "_scrapped_at", "total_videos",
         "total_views", "min_views", "max_views", "mean_views", "stddev_views", "cv_views_pct",
         "total_likes", "min_likes", "max_likes", "mean_likes", "stddev_likes", "cv_likes_pct",
         "total_comments", "min_comments", "max_comments", "mean_comments", "stddev_comments", "cv_comments_pct"

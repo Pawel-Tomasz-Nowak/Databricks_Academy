@@ -14,7 +14,7 @@ def aggregate_video_stats(silver_df: DataFrame) -> DataFrame:
 
     Args:
         silver_df: Silver-layer DataFrame containing ``video_id``,
-            ``_ingested_at``, and the raw metric columns ``view_count``,
+            ``_scrapped_at``, and the raw metric columns ``view_count``,
             ``like_count``, and ``comment_count``.
 
     Returns:
@@ -36,7 +36,7 @@ def aggregate_video_stats(silver_df: DataFrame) -> DataFrame:
 
     return silver_df.select(
         "video_id",
-        "_ingested_at",
+        "_scrapped_at",
         "total_views",
         "total_likes",
         "total_comments",
