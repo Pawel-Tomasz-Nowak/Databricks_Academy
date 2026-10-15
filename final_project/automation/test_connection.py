@@ -1,11 +1,9 @@
 """Verify Databricks SDK authentication against the target workspace."""
-import os
-from databricks.sdk import WorkspaceClient
+from workspace_client import get_workspace_client
 
 
 def verify_connection() -> None:
-  # Automatically picks up DATABRICKS_HOST and DATABRICKS_TOKEN from environment
-  w = WorkspaceClient()
+  w = get_workspace_client()
 
   user = w.current_user.me()
   print(f"[AUTH SUCCESS] Connected as: {user.user_name}")

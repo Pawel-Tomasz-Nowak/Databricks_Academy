@@ -1,15 +1,15 @@
 """Automate platform operations via Databricks SDK: trigger job, monitor run, and report status."""
 import sys
 import time
-from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.jobs import RunLifeCycleState, RunResultState
+from workspace_client import get_workspace_client
 
 TARGET_JOB_NAME = "[prod] Full Music ETL Workflow"
 POLL_INTERVAL_SECONDS = 10 # Arbitrary time elapsing between two consecutive calls for job status
 
 
 def trigger_and_monitor_workflow() -> None:
-  w = WorkspaceClient()
+  w = get_workspace_client()
 
   # Locate target job by name
   print(f"[SEARCH] Looking for job: '{TARGET_JOB_NAME}'...")
