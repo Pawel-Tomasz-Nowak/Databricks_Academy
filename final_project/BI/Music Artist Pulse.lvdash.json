@@ -17,7 +17,7 @@
         "facts AS (\n",
         "  SELECT\n",
         "    video_id,\n",
-        "    _ingested_at,\n",
+        "    _scrapped_at,\n",
         "    total_views,\n",
         "    total_likes,\n",
         "    total_comments\n",
@@ -30,7 +30,7 @@
         "  m.title,\n",
         "  m.album_release_date,\n",
         "  f.video_id,\n",
-        "  f._ingested_at,\n",
+        "  f._scrapped_at,\n",
         "  f.total_views,\n",
         "  f.total_likes,\n",
         "  f.total_comments\n",
@@ -67,13 +67,15 @@
               "dataType": "STRING",
               "values": [
                 {
-                  "value": "music_analytics"
+                  "value": "music_analytics_prod"
                 }
               ]
             }
           }
         }
-      ]
+      ],
+      "catalog": "dbr_dev",
+      "schema": "default"
     }
   ],
   "pages": [
@@ -132,16 +134,16 @@
             "name": "time_filter",
             "queries": [
               {
-                "name": "dashboards/01f19e3ceaa8101fa3d21ce73fe17fb7/datasets/01f19e3ceaa814e0a3176f0447a83081__ingested_at",
+                "name": "dashboards/01f1c7bb1acd1501bb5abef15ad766b5/datasets/01f1c7bb1ace16848ea2e7d892e105e9__scrapped_at",
                 "query": {
                   "datasetName": "music_artist_explorer",
                   "fields": [
                     {
-                      "name": "_ingested_at",
-                      "expression": "`_ingested_at`"
+                      "name": "_scrapped_at",
+                      "expression": "`_scrapped_at`"
                     },
                     {
-                      "name": "_ingested_at_associativity",
+                      "name": "_scrapped_at_associativity",
                       "expression": "COUNT_IF(`associative_filter_predicate_group`)"
                     }
                   ],
@@ -152,15 +154,18 @@
             "spec": {
               "version": 2,
               "frame": {
-                "title": "Snapshot Time",
-                "showTitle": true
+                "showTitle": true,
+                "title": {
+                  "value": "Snapshot Time",
+                  "fields": []
+                }
               },
               "widgetType": "filter-date-range-picker",
               "encodings": {
                 "fields": [
                   {
-                    "fieldName": "_ingested_at",
-                    "queryName": "dashboards/01f19e3ceaa8101fa3d21ce73fe17fb7/datasets/01f19e3ceaa814e0a3176f0447a83081__ingested_at"
+                    "fieldName": "_scrapped_at",
+                    "queryName": "dashboards/01f1c7bb1acd1501bb5abef15ad766b5/datasets/01f1c7bb1ace16848ea2e7d892e105e9__scrapped_at"
                   }
                 ]
               }
@@ -283,8 +288,8 @@
                   "datasetName": "music_artist_explorer",
                   "fields": [
                     {
-                      "name": "_ingested_at",
-                      "expression": "`_ingested_at`"
+                      "name": "_scrapped_at",
+                      "expression": "`_scrapped_at`"
                     },
                     {
                       "name": "sum(total_views)",
@@ -296,16 +301,19 @@
               }
             ],
             "spec": {
-              "version": 3,
               "frame": {
-                "title": "Artist Views Over Time",
-                "showTitle": true
+                "showTitle": true,
+                "title": {
+                  "value": "Artist Views Over Time",
+                  "fields": []
+                }
               },
+              "version": 3,
               "widgetType": "line",
               "encodings": {
                 "x": {
-                  "fieldName": "_ingested_at",
-                  "displayName": "_ingested_at",
+                  "fieldName": "_scrapped_at",
+                  "displayName": "Date",
                   "scale": {
                     "type": "temporal"
                   }
@@ -416,8 +424,8 @@
                       "expression": "`album_release_date`"
                     },
                     {
-                      "name": "_ingested_at",
-                      "expression": "`_ingested_at`"
+                      "name": "monthly(_scrapped_at)",
+                      "expression": "DATE_TRUNC(\"MONTH\", `_scrapped_at`)"
                     },
                     {
                       "name": "sum(total_views)",
@@ -437,11 +445,14 @@
               }
             ],
             "spec": {
-              "version": 2,
               "frame": {
-                "title": "Album Snapshot Table",
-                "showTitle": true
+                "showTitle": true,
+                "title": {
+                  "value": "Album Snapshot Table",
+                  "fields": []
+                }
               },
+              "version": 2,
               "widgetType": "table",
               "encodings": {
                 "columns": [
@@ -455,7 +466,7 @@
                     "fieldName": "album_release_date"
                   },
                   {
-                    "fieldName": "_ingested_at"
+                    "fieldName": "monthly(_scrapped_at)"
                   },
                   {
                     "fieldName": "sum(total_views)"
