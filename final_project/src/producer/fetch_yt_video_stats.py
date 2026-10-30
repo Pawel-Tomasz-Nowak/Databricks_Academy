@@ -119,7 +119,7 @@ def read_data_from_api(batch_size: int = 50) -> list[dict]:
                     "view_count": item_statistics.get("viewCount"),
                     "like_count": item_statistics.get("likeCount"),
                     "comment_count": item_statistics.get("commentCount"),
-                    "_scrapped_at": datetime.utcnow().isoformat(),
+                    "_scrapped_at": datetime.utcnow().replace(microsecond=0).isoformat(),
                 }
                 all_video_responses.append(video_response)
         else:
