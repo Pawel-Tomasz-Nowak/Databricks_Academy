@@ -1,6 +1,6 @@
 """Create the video-grain fact table used by gold business aggregates.
 
-The fact layer preserves one metric snapshot per ``video_id`` and ingestion
+The fact layer preserves one metric snapshot per ``video_id`` and scrapping
 timestamp, which downstream album- and artist-level rollups can reuse without
 re-reading the silver transformation logic.
 """
@@ -43,7 +43,7 @@ fact_expectations = {
 
 @dp.materialized_view(
     name=music_stats_tables["fact"],
-    comment="Fact table with one video-level snapshot of views, likes, and comments per ingestion timestamp.",
+    comment="Fact table with one video-level snapshot of views, likes, and comments per scrapping timestamp.",
     table_properties={
         "table_type": "fact",
         "grain": "video",

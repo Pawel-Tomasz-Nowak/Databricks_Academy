@@ -1,7 +1,6 @@
 """Provision ephemeral compute, submit an ad-hoc job run, and monitor status via Databricks SDK."""
 import sys
 import time
-from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.compute import (
     ClusterSpec,
     DataSecurityMode,
@@ -13,12 +12,13 @@ from databricks.sdk.service.jobs import (
     SparkPythonTask,
     SubmitTask,
 )
+from workspace_client import get_workspace_client
 
 POLL_INTERVAL_SECONDS = 10
 
 
 def run_ephemeral_workload() -> None:
-  w = WorkspaceClient()
+  w = get_workspace_client()
 
   # Define lightweight single-node compute spec for ephemeral execution
   job_cluster_spec = ClusterSpec(
