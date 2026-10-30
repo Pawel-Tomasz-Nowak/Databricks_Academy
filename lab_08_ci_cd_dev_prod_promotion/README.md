@@ -1,11 +1,63 @@
-# Lab 9: Databricks REST API Automation
+# Lab 08 — CI/CD and Development-to-Production Promotion
 
-[![Build](https://img.shields.io/badge/build-passing-2ea44f)](../../actions)
-[![Platform](https://img.shields.io/badge/platform-Azure%20Databricks-0078D4)](https://azure.microsoft.com/products/databricks)
-[![Tooling](https://img.shields.io/badge/tooling-Databricks%20SDK%20Python-orange)](https://docs.databricks.com/en/dev-tools/sdk-python.html)
-[![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF)](https://docs.github.com/en/actions)
+This lab packages the music popularity pipeline as a Databricks Asset Bundle with separate `dev` and `prod` targets, while keeping the pipeline, quality gate, dashboards, and unit tests in one deployable project.
 
-Lab 9 operationalizes the `music_popularity_spike_detection` lakehouse through the Databricks Jobs API and the official `databricks-sdk` Python client. It demonstrates how to provision short-lived compute, dispatch production workflows, observe execution state, and return meaningful process exit codes without depending on browser-based Databricks UI actions.
+## What is demonstrated
+
+The bundle in `databricks.yml` and `resources/jobs_dlt.yml` defines two environments:
+
+- `dev` uses the development catalog/schema and leaves the pipeline paused.
+- `prod` uses the production schema and enables the workflow trigger.
+
+The configured workflow runs these stages in order:
+
+```text
+setup_environment
+      │
+      ▼
+fetch_youtube_data
+      │
+      ▼
+run_dlt_pipeline
+      │
+      ▼
+reconciliation_gate
+```
+
+The source code includes the bronze, silver, fact, metadata, and aggregation pipeline stages from the earlier labs. The tests exercise the reusable aggregation and reconciliation functions locally. The BI folder contains the dashboards, alert, and Unity Catalog row/column security queries that are deployed with the project.
+
+The repository does not contain a GitHub Actions workflow in this lab folder; CI/CD is represented by the bundle targets, deployable resources, and test suite.
+
+## Directory structure
+
+```text
+lab_08_ci_cd_dev_prod_promotion/
+├── databricks.yml                         # Bundle variables and dev/prod targets
+├── resources/jobs_dlt.yml                 # Lakeflow pipeline and orchestrator job
+├── src/
+│   ├── setup/                             # Catalog, schema, and Volume setup
+│   ├── producer/                           # YouTube snapshot ingestion
+│   ├── pipelines/                         # Bronze through gold pipeline stages
+│   ├── transformations/                   # Reusable aggregation functions
+│   └── quality/                            # Reconciliation gate and scorecard
+├── tests/                                  # Pytest coverage for transformations and reconciliation
+├── BI/                                     # Dashboards, alert, CLS, and RLS queries
+├── exploration/notebooks/scratchpads/      # Ad hoc workspace checks
+└── README.md                              # This documentation
+```
+
+## Deploying and testing
+
+From the lab directory, after authenticating the Databricks CLI:
+
+```bash
+databricks bundle validate -t dev
+databricks bundle deploy -t dev
+databricks bundle run -t dev music_etl_orchestrator
+pytest -q tests
+```
+
+Use `-t prod` only after validating the target configuration and confirming the production catalog, schema, Volume, cluster, and secret scope. Replace the example values in `databricks.yml` with environment-specific settings; credentials belong in the Databricks CLI profile or secret scope.
 
 ## Executive Summary
 

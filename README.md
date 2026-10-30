@@ -1,249 +1,116 @@
-# Databricks Academy by SoftServe
+# Databricks Academy
 
-This repository collects the lab work for the Databricks Academy by SoftServe. It is organized by assignment so each lab stays in its own folder with the notebooks, datasets, screenshots, and other files that belong to that part of the course.
+This repository contains the practical work for a Databricks Academy track: twelve progressively larger labs and a final project built around an Azure Databricks music-analytics lakehouse.
 
-## Module status
+## Learning path
 
-| Module | Focus | Key topics | Status |
-| --- | --- | --- | --- |
-| **Lab 11** | Direct Push Ingestion (Zerobus Pattern) | Brokerless Ingest, SQL Execution API, Source Idempotency, MERGE | Completed |
+The labs move from basic Spark work to a governed, tested, and AI-enabled lakehouse:
 
-## Repository layout
+| Lab | Focus | Main result |
+| --- | --- | --- |
+| 01 | Databricks fundamentals | Spark exploration of Alabama real-estate data, a bronze–silver–gold exercise, and a first dashboard |
+| 02 | Azure and shared lakehouse setup | ADLS, Key Vault, secret-scope authentication, and parameterised bronze/silver schemas |
+| 03 | Streaming ingestion | CloudFiles Auto Loader and Azure Event Hubs ingestion patterns |
+| 04 | Silver layer | Data quality cleaning, schema evolution, and SCD Type I/II processing |
+| 05 | Lakeflow declarative pipelines | DAB-managed music popularity pipeline and spike-oriented aggregations |
+| 06 | Gold layer and analytics | Business-facing facts/dimensions, dashboards, alerts, and governance assets |
+| 07 | Testing and quality | Expectations, quarantine, reconciliation gates, and Pytest coverage |
+| 08 | CI/CD promotion | Dev/prod Asset Bundle targets and deployable pipeline resources |
+| 09 | REST API automation | Programmatic job and compute control with the Databricks SDK |
+| 10 | External operational databases | Lakehouse Federation with PostgreSQL and CDC patterns |
+| 11 | Zerobus-style ingestion | Brokerless push ingestion with source idempotency and Delta reconciliation |
+| 12 | AI capstone | RAG with Vector Search, inference audit logging, and governance tests |
+
+Labs 04–07 and 09–11 already contain detailed local documentation; their README files are the authoritative guides for those modules.
+
+## Shared lakehouse architecture
+
+Most of the later labs build on the same music analytics flow:
 
 ```text
-README.md
-LICENSE
-.gitignore
-.git/
-.github/
-lab_01_databricks_fundamentals_and_dev_setup/
-	Notebook.ipynb
-	alabama_sold_real_estate_intelligence_2026.csv
-	Dashboard - week 1.lvdash.json
-	image_1783362421351.png
-lab_02_azure_services_and_shared_lakehouse_setup/
-	Stage 1/
-		key_vault.png
-		storage_account.png
-		workspace.png
-	Stage 2/
-		Service Principal connection.ipynb
-		bronze_ingestion.ipynb
-		creating schemas.sql
-		optional task.ipynb
-		silver_ingestion.ipynb
-lab_03_streaming_and_incremental_ingestion/
-	CloudFiles_AutoLoader.ipynb
-	EventHub_AutoLoader.ipynb
-	metallica_event_hubs.ipynb
-	optional_additions.ipynb
-lab_04_silver_layer_data_quality_and_schema_evolution/
-	notebooks/
-		Lab 4.ipynb
-		workflow_for_job.ipynb
-	src/
-		config.py
-		data_generators.py
-		data_cleaner.py
-		data_mergers.py
-		preprocessing.py
-	images/
-		cast_invalid_input_string_to_int.png
-		column_mapping_mode_required.png
-		delta_metadata_mismatch_extra_column.png
-	README.md
-lab_05_declarative_pipelines_lakeflow/
-	databricks.yml
-	README.md
-	src/
-		setup/
-		producer/
-		pipelines/
-		transformations/
-	tests/
-lab_06_gold_layer_and_business_analytics/
-	databricks.yml
-	README.md
-	BI/
-	screenshots/
-	src/
-	tests/
-lab_07_data_quality_testing_and_unit_tests/
-	databricks.yml
-	README.md
-	BI/
-	screenshots/
-	src/
-		setup/
-		producer/
-		pipelines/
-		quality/
-		transformations/
-	tests/
+YouTube API / seed files / Event Hubs / PostgreSQL
+                    │
+                    ▼
+        Bronze raw snapshots and landing tables
+                    │
+                    ▼
+       Silver cleaned, typed, deduplicated data
+                    │
+                    ▼
+ Gold facts, dimensions, hourly aggregates, and spikes
+                    │
+        ┌───────────┴───────────┐
+        ▼                       ▼
+ Databricks SQL BI        RAG / governance / automation
+ dashboards and alerts    Vector Search and API workflows
 ```
 
-## What is in the repository
+The first three labs use the Alabama real-estate dataset to teach the platform and ingestion basics. From lab 04 onward, the main example is music metadata and YouTube engagement data.
 
-The repository is split into lab folders rather than one large notebook collection. That keeps the material for each topic together and makes it easier to follow the course week by week.
+## Repository structure
 
-### lab_01_databricks_fundamentals_and_dev_setup
+```text
+Databricks_Academy/
+├── lab_01_databricks_fundamentals_and_dev_setup/       # Spark and first dashboard
+├── lab_02_azure_services_and_shared_lakehouse_setup/   # Azure resources and schemas
+├── lab_03_streaming_and_incremental_ingestion/         # Auto Loader and Event Hubs
+├── lab_04_silver_layer_data_quality_and_schema_evolution/
+├── lab_05_declarative_pipelines_lakeflow/
+├── lab_06_gold_layer_and_business_analytics/
+├── lab_07_data_quality_testing_and_unit_tests/
+├── lab_08_ci_cd_dev_prod_promotion/                    # Bundle targets and tests
+├── lab_09_databricks_rest_api_automation/               # SDK-based orchestration
+├── lab_10_external_operational_databases_lakehouse_federation_cdc/
+├── lab_11_zero_bus_streaming_with_zerobus/
+├── lab_12_ai_capstone_rag_ag_assisted_development/
+├── final_project/                                      # Consolidated end-to-end project
+├── .github/                                            # Repository automation and project skills
+├── .ai-dev-kit/, .claude/, .cursor/                    # Local assistant configuration
+├── LICENSE                                             # Repository license
+└── README.md                                           # This overview
+```
 
-This lab covers the basics of the Databricks environment and the development setup. The folder currently contains:
+Typical project assets inside the labs include:
 
-- `Notebook.ipynb`, which holds the main lab work
-- `alabama_sold_real_estate_intelligence_2026.csv`, the dataset used in the exercises
-- `Dashboard - week 1.lvdash.json`, a dashboard export for the first week
-- `image_1783362421351.png`, a supporting image file
+- `src/` Python pipeline, producer, transformation, setup, quality, and RAG code.
+- `resources/jobs_dlt.yml` and `databricks.yml` Asset Bundle definitions.
+- `tests/` Pytest suites for transformations, reconciliation, and inference.
+- `BI/` Lakeview dashboards, alerts, column masking, and row-level security queries.
+- `.ipynb` notebooks for interactive Databricks execution and explanations.
 
-### lab_02_azure_services_and_shared_lakehouse_setup
+Generated caches such as `__pycache__`, `.pytest_cache`, and `.databricks/bundle` state are not part of the learning flow.
 
-This lab is divided into stages.
+## Prerequisites
 
-#### Stage 1
+The exact requirements vary by lab, but the later projects assume:
 
-Stage 1 contains screenshots that document the Azure setup steps:
+- An Azure Databricks workspace with Unity Catalog.
+- A Databricks Runtime with PySpark; streaming labs additionally need access to Azure Event Hubs.
+- Python 3.10+ for the local test and automation tooling.
+- Databricks CLI and, where required, the `databricks-sdk` Python package.
+- Azure storage, Key Vault, and a Databricks secret scope for labs 02–03 and the music pipeline.
+- A SQL warehouse for SQL dashboards and API execution examples.
+- YouTube API access for the music ingestion labs.
+- PostgreSQL/Neon access for lab 10 and Vector Search/model access for lab 12.
 
-- `key_vault.png`
-- `storage_account.png`
-- `workspace.png`
+Never commit tokens, client secrets, Event Hubs connection strings, or model endpoint credentials. Use Databricks secret scopes, CLI profiles, or environment variables.
 
-#### Stage 2
+## Getting started
 
-Stage 2 contains the notebooks for the lakehouse and ingestion tasks:
+For the introductory labs, open the notebook in the relevant folder and run it on a Databricks cluster after making the dataset available. Each local README contains the parameters and external services needed by that module.
 
-- `bronze_ingestion.ipynb`
-- `creating schemas.dbquery.ipynb`
-- `optional task.ipynb`
-- `Service Principal connection.ipynb`
-- `silver_ingestion.ipynb`
+For a bundle-based music pipeline:
 
-### lab_03_streaming_and_incremental_ingestion
+```bash
+cd lab_08_ci_cd_dev_prod_promotion
+databricks bundle validate -t dev
+databricks bundle deploy -t dev
+databricks bundle run -t dev music_etl_orchestrator
+pytest -q tests
+```
 
-This lab focuses on streaming and incremental ingestion patterns using Databricks AutoLoader, Event Hubs, and related streaming sources. The folder contains:
+The same workflow applies to the later bundle-based labs after reviewing their local `databricks.yml` and resource configuration. Deploy to `prod` only after checking catalog, schema, Volume, cluster, and secret values for the target workspace.
 
-- `CloudFiles_AutoLoader.ipynb` — demonstrates file-based streaming ingestion with AutoLoader
-- `EventHub_AutoLoader.ipynb` — shows ingesting events from Azure Event Hubs
-- `metallica_event_hubs.ipynb` — an example notebook used in the Event Hubs exercises
-- `optional_additions.ipynb` — additional streaming patterns and examples
+## How to use the repository
 
-### lab_04_silver_layer_data_quality_and_schema_evolution ✅
-
-This lab demonstrates building a production-grade Silver Layer pipeline with data quality enforcement, schema evolution, and Slowly Changing Dimensions (SCD) Type I and Type II patterns. The lab showcases modular architecture and clean code practices.
-
-**Key Features:**
-* Modular Python architecture with reusable modules organized in `src/` package
-* Dynamic configuration supporting widget-based and environment-based parameters
-* Comprehensive data quality transformations (negative value handling, deduplication, missing data)
-* Delta Lake MERGE operations for both SCD Type I and Type II
-* Synthetic data generation with intentional overlaps to simulate late-arriving data
-* Complete documentation following clean code principles
-
-**Directory Structure:**
-* `notebooks/` — Interactive demonstration notebooks
-  * `Lab 4.ipynb` — main interactive demonstration of SCD Type I and Type II workflows
-  * `workflow_for_job.ipynb` — job orchestration workflow for production deployment
-* `src/` — Python source modules (reusable package)
-  * `__init__.py` — package initialization
-  * `config.py` — dynamic configuration module with widget/environment parameter support
-  * `data_generators.py` — synthetic streaming event data generation with controlled overlaps
-  * `data_cleaner.py` — data quality transformations (validation, deduplication, SCD columns)
-  * `data_mergers.py` — Delta Lake merge logic for SCD Type I and Type II patterns
-  * `preprocessing.py` — end-to-end ETL orchestration pipeline
-* `images/` — documentation screenshots showing schema evolution errors and solutions
-* `setup_imports.py` — import path helper for module loading
-* `README.md` — comprehensive documentation with usage examples and completion status
-
-**Status:** ✅ Completed with code review, documentation, and clean code improvements.
-
-### lab_05_declarative_pipelines_lakeflow ✅
-
-This lab builds an end-to-end music analytics pipeline using Databricks Lakeflow Spark Declarative Pipelines and Declarative Automation Bundles (DABs). The pipeline ingests YouTube video engagement snapshots via the YouTube Data API v3, processes them through a bronze–silver–gold medallion architecture, and exposes minute-level aggregate tables for trend analysis.
-
-**Key Features:**
-* Full Declarative Automation Bundle setup with `databricks.yml`: two targets (`dev` and `prod`), six configurable variables, and a three-task Lakeflow Job connecting infrastructure setup, API fetch, and pipeline execution in sequence
-* Lakeflow Spark Declarative Pipeline using the `pyspark.pipelines` API (`@dp.table`, `@dp.expect_or_drop`, `@dp.expect_or_fail`, `dp.create_streaming_table`, `dp.apply_changes_from_snapshot`)
-* Auto Loader streaming ingestion from a Unity Catalog Volume landing zone with schema evolution in rescue mode
-* SCD Type 2 history tracking for music metadata via `apply_changes_from_snapshot`
-* Per-hour engagement velocity metrics computed using a lag window function partitioned by `video_id`
-* Bulletproof `sys.path` resolution for `src/` package imports inside the SDP runtime (where `__file__` is unavailable)
-* YouTube Data API v3 client with Databricks Secrets integration and configurable batch fetching
-* Shared configuration module (`music_pipeline_setup.py`) that works in both job and SDP contexts via `parse_known_args` + `spark.conf` fallback
-
-**Directory Structure:**
-* `databricks.yml` — bundle definition: pipeline, job, variables, `dev`/`prod` targets
-* `src/setup/` — Unity Catalog bootstrap and shared path/table-name configuration
-* `src/producer/` — YouTube Data API client and job entry point for snapshot writes
-* `src/pipelines/` — three SDP pipeline files (bronze, silver, gold)
-* `src/transformations/` — pure PySpark transformation functions (per-hour deltas, minute aggregations)
-* `tests/` — placeholder for pytest tests
-* `README.md` — full architecture diagram, per-file descriptions, prerequisites, and bundle commands
-
-**Tables Created (in `dbr_dev.music_analytics` / `dbr_prod.music_analytics`):**
-* `bronze_music_stats`, `bronze_music_metadata`
-* `silver_music_stats`, `silver_music_metadata`, `silver_music_metadata_history`
-* `gold_music_stats_by_author`, `gold_music_stats_by_video`
-
-**Status:** ✅ Completed with full documentation, inline docstrings, and clean code.
-
-### lab_06_gold_layer_and_business_analytics ✅
-
-This lab focuses on the gold layer and the business analytics assets that sit on top of the music pipeline. It introduces a video-grain fact table, a metadata dimension table, artist- and album-level rollups, and the SQL assets needed to expose the data in dashboards, alerts, and secured views.
-
-**Main assets:**
-* `fact_music_stats` — video-level fact table used for reporting snapshots
-* `dim_music_metadata` — metadata dimension used to label and secure BI queries
-* `gold_author_music_stats` — artist-level aggregate with descriptive statistics
-* `gold_album_music_stats` — album-level aggregate with descriptive statistics
-* `BI/Music Artist Pulse.lvdash.json` — dashboard draft for exploring artist performance over time
-* `BI/volume_drop_alert.dbalert.json` — alert query that checks whether the latest fact batch is smaller than the expected metadata set
-* `BI/RLS/` and `BI/CLS/` — SQL assets for row-level filtering and column masking
-* `screenshots/full_run_pipeline_graph.png` — screenshot of a full pipeline run
-* `src/notebooks/scratchpads/data_volumes_test.ipynb` — small development notebook for ad hoc validation
-
-**Code areas documented in this update:**
-* `src/pipelines/03_gold_metadata.py`
-* `src/pipelines/04_gold_aggregations.py`
-* `src/transformations/aggregate_stats.py`
-* `src/transformations/aggregate_video_stats.py`
-* `src/setup/music_pipeline_setup.py`
-
-**Status:** ✅ README and Python inline documentation updated in English without changing runtime logic.
-
-### lab_07_data_quality_testing_and_unit_tests
-
-This lab extends the medallion pipeline with comprehensive data quality controls and a pytest test suite backed by Databricks Connect. New additions compared to lab 6 include a metadata quarantine table, `@dp.expect_*` rules on every pipeline stage, a post-pipeline reconciliation job task, and unit plus integration tests for the core transformation functions.
-
-**Key additions over lab 6:**
-* `silver_music_quarantine` — streaming table that captures rejected metadata rows and tags each one with the violated rule name(s)
-* `@dp.expect_all_or_fail` / `@dp.expect_all_or_drop` on all silver and gold pipeline stages
-* `@dp.expect_or_fail` on both gold aggregate tables to prevent null author or album keys from entering the reports
-* `src/quality/reconciliation_gate.py` — Task 4 of the ETL job: verifies bronze count equals clean silver count plus quarantine count, and that total view sums are identical across `fact_music_stats`, `gold_author_music_stats`, and `gold_album_music_stats`
-* `src/quality/no_delta_constraints_justification.md` — design note explaining the choice of SDP expectations over Delta constraints
-* `tests/` — pytest suite using `DatabricksSession` with four test files covering `aggregate_stats`, `aggregate_video_stats`, `compute_per_hour_deltas` edge cases, and live reconciliation checks against `dbr_dev`
-
-**BI assets (shared with lab 6 and extended):**
-* `Music Artist Pulse` dashboard
-* `Music Data Quality & Medallion Scorecard` dashboard — new scorecard showing pass rate, quarantine count, medallion flow, and quarantine inspection
-* `volume_drop_alert` alert
-* `BI/RLS/` and `BI/CLS/` SQL assets for row-level and column-level security
-
-**Tables created (`dbr_dev.music_analytics` / `dbr_prod.music_analytics`):**
-* Bronze: `bronze_music_stats`, `bronze_music_metadata`
-* Silver: `silver_music_stats`, `silver_music_metadata`, `silver_music_quarantine`, `silver_music_metadata_history`
-* Gold: `fact_music_stats`, `dim_music_metadata`, `gold_author_music_stats`, `gold_album_music_stats`
-
-**Status:** Documented and updated with English-only docstrings, cleaned inline comments, and a rewritten README.
-
-### Module 11: Direct Lakehouse Ingestion (Zerobus Pattern)
-
-- **Brokerless Architecture:** Eliminates 24/7 provisioned Kafka infrastructure for single-sink Lakehouse ingest workloads, reducing compute idle costs.
-- **Direct REST Push:** External client pushes micro-batches via Databricks SQL Execution API (`/api/2.0/sql/statements`).
-- **Idempotency & Resilience:** Source-generated UUID v4 keys paired with exponential backoff and randomized jitter on the client, and target `MERGE INTO` deduplication in Delta Lake.
-
-## Notes
-
-The repository structure is expected to grow as more labs are added. New assignments should follow the same pattern: create a folder for the lab, keep related notebooks and assets together, and avoid mixing files between weeks.
-
-## License
-
-This repository is shared under the terms of the included license.
+Read the labs in numerical order when following the course. Use the README inside a lab for its detailed execution steps and assumptions; use this file to understand how the modules fit together. The `final_project/` directory is the consolidated version of the lakehouse and supporting assets for an end-to-end review.
